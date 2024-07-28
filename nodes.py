@@ -5,6 +5,7 @@ import torchaudio
 import numpy as np
 import os
 import sys
+import comfy.utils
 import folder_paths
 
 now_dir = os.path.dirname(os.path.abspath(__file__))
@@ -108,6 +109,113 @@ class TextNode:
 
     def encode(self, text):
         return (text,)
+
+
+class CosyVoiceDialogue:
+    def __init__(self):
+        self.model_dir = None
+        self.cosyvoice = None
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "speed": ("FLOAT", {"default": 1.0}),
+                "silence": ("FLOAT", {"default": 0.5}),
+                "seed": ("INT", {"default": 42}),
+            },
+        }
+
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("generated_audio",)
+
+    FUNCTION = "generate"
+
+    CATEGORY = "AIFSH_CosyVoice"
+
+    def map(self, voices):
+        return {chr(65 + i): voice for i, voice in enumerate(voices)}
+
+    def zip_dialog(self, tts_text, voice_map):
+        lines = tts_text.split("\n")
+        result = []
+        for line in lines:
+            speaker, dialog = line.split(": ", 1)
+            if speaker in voice_map:
+                voice_tensor = voice_map[speaker]
+                result.append((speaker, voice_tensor, dialog))
+        return result
+
+    def sequence_audio(self, audios, silence_duration):
+        sample_rate = audios[0]["sample_rate"]
+
+        for audio in audios:
+            if audio["sample_rate"] != sample_rate:
+                raise ValueError("All sample rates must be equal")
+
+        silence = torch.zeros((1, 1, int(silence_duration * sample_rate)))
+
+        sequence = []
+        for i, audio in enumerate(audios):
+            sequence.append(audio["waveform"])
+            if i < len(audios) - 1:
+                sequence.append(silence)
+
+        sequenced_waveform = torch.cat(sequence, dim=-1)
+        return {"sample_rate": sample_rate, "waveform": sequenced_waveform}
+
+    def generate(
+        self,
+        tts_text: str,
+        speed: float,
+        silence: float,
+        seed: int,
+        **kwargs: dict[str, torch.Tensor],
+    ):
+        voices = kwargs.values()
+        voice_map = self.map(voices)
+
+        text_map = self.zip_dialog(tts_text, voice_map)
+        print(text_map)
+
+        outputs = []
+
+        # TODO: move to a load node
+        model_dir = os.path.join(pretrained_models, "CosyVoice-300M")
+        snapshot_download(model_id="iic/CosyVoice-300M", local_dir=model_dir)
+        self.model_dir = model_dir
+        self.cosyvoice = CosyVoice(model_dir)
+
+        pbar = comfy.utils.ProgressBar(len(text_map))
+        for line in text_map:
+            _speaker, voice_tensor, text = line
+
+            waveform = voice_tensor["waveform"].squeeze(0)
+            source_sr = voice_tensor["sample_rate"]
+            speech = waveform.mean(dim=0, keepdim=True)
+
+            if source_sr != prompt_sr:
+                speech = torchaudio.transforms.Resample(
+                    orig_freq=source_sr, new_freq=prompt_sr
+                )(speech)
+            prompt_speech_16k = postprocess(speech)
+            set_all_random_seed(seed)
+            infered = self.cosyvoice.inference_cross_lingual(text, prompt_speech_16k)
+            output_numpy = infered["tts_speech"].squeeze(0).numpy() * 32768
+            output_numpy = output_numpy.astype(np.int16)
+            output_numpy = speed_change(output_numpy, speed, target_sr)
+            audio = {
+                "waveform": torch.stack(
+                    [torch.Tensor(output_numpy / 32768).unsqueeze(0)]
+                ),
+                "sample_rate": target_sr,
+            }
+            outputs.append(audio)
+            pbar.update(1)
+
+        stacked_voices = self.sequence_audio(outputs, silence)
+        return (stacked_voices,)
 
 
 class CosyVoiceNode:
