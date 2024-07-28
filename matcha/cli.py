@@ -28,10 +28,17 @@ VOCODER_URLS = {
 }
 
 MULTISPEAKER_MODEL = {
-    "matcha_vctk": {"vocoder": "hifigan_univ_v1", "speaking_rate": 0.85, "spk": 0, "spk_range": (0, 107)}
+    "matcha_vctk": {
+        "vocoder": "hifigan_univ_v1",
+        "speaking_rate": 0.85,
+        "spk": 0,
+        "spk_range": (0, 107),
+    }
 }
 
-SINGLESPEAKER_MODEL = {"matcha_ljspeech": {"vocoder": "hifigan_T2_v1", "speaking_rate": 0.95, "spk": None}}
+SINGLESPEAKER_MODEL = {
+    "matcha_ljspeech": {"vocoder": "hifigan_T2_v1", "speaking_rate": 0.95, "spk": None}
+}
 
 
 def plot_spectrogram_to_numpy(spectrogram, filename):
@@ -84,7 +91,9 @@ def assert_required_models_available(args):
 def load_hifigan(checkpoint_path, device):
     h = AttrDict(v1)
     hifigan = HiFiGAN(h).to(device)
-    hifigan.load_state_dict(torch.load(checkpoint_path, map_location=device)["generator"])
+    hifigan.load_state_dict(
+        torch.load(checkpoint_path, weights_only=True, map_location=device)["generator"]
+    )
     _ = hifigan.eval()
     hifigan.remove_weight_norm()
     return hifigan
@@ -125,7 +134,9 @@ def to_waveform(mel, vocoder, denoiser=None):
 def save_to_folder(filename: str, output: dict, folder: str):
     folder = Path(folder)
     folder.mkdir(exist_ok=True, parents=True)
-    plot_spectrogram_to_numpy(np.array(output["mel"].squeeze().float().cpu()), f"{filename}.png")
+    plot_spectrogram_to_numpy(
+        np.array(output["mel"].squeeze().float().cpu()), f"{filename}.png"
+    )
     np.save(folder / f"{filename}", output["mel"].cpu().numpy())
     sf.write(folder / f"{filename}.wav", output["waveform"], 22050, "PCM_24")
     return folder.resolve() / f"{filename}.wav"
@@ -232,7 +243,9 @@ def cli():
         choices=VOCODER_URLS.keys(),
     )
     parser.add_argument("--text", type=str, default=None, help="Text to synthesize")
-    parser.add_argument("--file", type=str, default=None, help="Text file to synthesize")
+    parser.add_argument(
+        "--file", type=str, default=None, help="Text file to synthesize"
+    )
     parser.add_argument("--spk", type=int, default=None, help="Speaker ID")
     parser.add_argument(
         "--temperature",
@@ -246,8 +259,14 @@ def cli():
         default=None,
         help="change the speaking rate, a higher value means slower speaking rate (default: 1.0)",
     )
-    parser.add_argument("--steps", type=int, default=10, help="Number of ODE steps  (default: 10)")
-    parser.add_argument("--cpu", action="store_true", help="Use CPU for inference (default: use GPU if available)")
+    parser.add_argument(
+        "--steps", type=int, default=10, help="Number of ODE steps  (default: 10)"
+    )
+    parser.add_argument(
+        "--cpu",
+        action="store_true",
+        help="Use CPU for inference (default: use GPU if available)",
+    )
     parser.add_argument(
         "--denoiser_strength",
         type=float,
@@ -260,9 +279,14 @@ def cli():
         default=os.getcwd(),
         help="Output folder to save results (default: current dir)",
     )
-    parser.add_argument("--batched", action="store_true", help="Batched inference (default: False)")
     parser.add_argument(
-        "--batch_size", type=int, default=32, help="Batch size only useful when --batched (default: 32)"
+        "--batched", action="store_true", help="Batched inference (default: False)"
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size only useful when --batched (default: 32)",
     )
 
     args = parser.parse_args()
@@ -282,7 +306,11 @@ def cli():
 
     texts = get_texts(args)
 
-    spk = torch.tensor([args.spk], device=device, dtype=torch.long) if args.spk is not None else None
+    spk = (
+        torch.tensor([args.spk], device=device, dtype=torch.long)
+        if args.spk is not None
+        else None
+    )
     if len(texts) == 1 or not args.batched:
         unbatched_synthesis(args, device, model, vocoder, denoiser, texts, spk)
     else:
@@ -344,15 +372,26 @@ def batched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
         total_rtf.append(output["rtf"])
         total_rtf_w.append(rtf_w)
         for j in range(output["mel"].shape[0]):
-            base_name = f"utterance_{j:03d}_speaker_{args.spk:03d}" if args.spk is not None else f"utterance_{j:03d}"
+            base_name = (
+                f"utterance_{j:03d}_speaker_{args.spk:03d}"
+                if args.spk is not None
+                else f"utterance_{j:03d}"
+            )
             length = output["mel_lengths"][j]
-            new_dict = {"mel": output["mel"][j][:, :length], "waveform": output["waveform"][j][: length * 256]}
+            new_dict = {
+                "mel": output["mel"][j][:, :length],
+                "waveform": output["waveform"][j][: length * 256],
+            }
             location = save_to_folder(base_name, new_dict, args.output_folder)
             print(f"[🍵-{j}] Waveform saved: {location}")
 
     print("".join(["="] * 100))
-    print(f"[🍵] Average Matcha-TTS RTF: {np.mean(total_rtf):.4f} ± {np.std(total_rtf)}")
-    print(f"[🍵] Average Matcha-TTS + VOCODER RTF: {np.mean(total_rtf_w):.4f} ± {np.std(total_rtf_w)}")
+    print(
+        f"[🍵] Average Matcha-TTS RTF: {np.mean(total_rtf):.4f} ± {np.std(total_rtf)}"
+    )
+    print(
+        f"[🍵] Average Matcha-TTS + VOCODER RTF: {np.mean(total_rtf_w):.4f} ± {np.std(total_rtf_w)}"
+    )
     print("[🍵] Enjoy the freshly whisked 🍵 Matcha-TTS!")
 
 
@@ -361,7 +400,11 @@ def unbatched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
     total_rtf_w = []
     for i, text in enumerate(texts):
         i = i + 1
-        base_name = f"utterance_{i:03d}_speaker_{args.spk:03d}" if args.spk is not None else f"utterance_{i:03d}"
+        base_name = (
+            f"utterance_{i:03d}_speaker_{args.spk:03d}"
+            if args.spk is not None
+            else f"utterance_{i:03d}"
+        )
 
         print("".join(["="] * 100))
         text = text.strip()
@@ -390,8 +433,12 @@ def unbatched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
         print(f"[+] Waveform saved: {location}")
 
     print("".join(["="] * 100))
-    print(f"[🍵] Average Matcha-TTS RTF: {np.mean(total_rtf):.4f} ± {np.std(total_rtf)}")
-    print(f"[🍵] Average Matcha-TTS + VOCODER RTF: {np.mean(total_rtf_w):.4f} ± {np.std(total_rtf_w)}")
+    print(
+        f"[🍵] Average Matcha-TTS RTF: {np.mean(total_rtf):.4f} ± {np.std(total_rtf)}"
+    )
+    print(
+        f"[🍵] Average Matcha-TTS + VOCODER RTF: {np.mean(total_rtf_w):.4f} ± {np.std(total_rtf_w)}"
+    )
     print("[🍵] Enjoy the freshly whisked 🍵 Matcha-TTS!")
 
 
