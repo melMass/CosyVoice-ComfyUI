@@ -21,6 +21,14 @@ pretrained_models = os.path.join(now_dir, "pretrained_models")
 
 from cosyvoice.cli.cosyvoice import CosyVoice
 
+def STRING_INPUT(multi=False, default_val=""):
+    if multi:
+        return (
+            "STRING",
+            {"default": str(default_val), "multiline": True, "dynamicPrompts": True},
+        )
+    return ("STRING", {"default": str(default_val)})
+
 
 DEFAULT_DIALOG = """
 A: Hi I'm comfy, let's dance
@@ -102,11 +110,7 @@ def speed_change(input_audio, speed, sr):
 class TextNode:
     @classmethod
     def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "text": ("STRING", {"multiline": True, "dynamicPrompts": True})
-            }
-        }
+        return {"required": {"text": STRING_INPUT(True)}}
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "encode"
@@ -200,7 +204,7 @@ class CosyVoicePretrainedTones(CosyBase):
         return {
             "required": {
                 "model": ("COSYVOICE_MODEL",),
-                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "tts_text": STRING_INPUT(True),
                 "sft": (sft_spk_list, {"default": "English Woman"}),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "seed": ("INT", {"default": 42}),
@@ -230,8 +234,8 @@ class CosyVoiceNaturalLanguageControl(CosyBase):
         return {
             "required": {
                 "model": ("COSYVOICE_MODEL",),
-                "instruct_text": ("STRING",),
-                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "instruct_text": STRING_INPUT(True),
+                "tts_text": STRING_INPUT(True),
                 "sft": (sft_spk_list, {"default": "English Woman"}),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "seed": ("INT", {"default": 42}),
@@ -272,7 +276,7 @@ class CosyVoiceCrossLanguageReproduction(CosyBase):
             "required": {
                 "model": ("COSYVOICE_MODEL",),
                 "prompt_wav": ("AUDIO",),
-                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "tts_text": STRING_INPUT(True),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "seed": ("INT", {"default": 42}),
             }
@@ -310,9 +314,9 @@ class CosyVoice3SExtremeReproduction(CosyBase):
         return {
             "required": {
                 "model": ("COSYVOICE_MODEL",),
-                "prompt_text": ("STRING",),
+                "prompt_text": STRING_INPUT(True),
                 "prompt_wav": ("AUDIO",),
-                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "tts_text": STRING_INPUT(True),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "seed": ("INT", {"default": 42}),
             }
@@ -340,12 +344,14 @@ class CosyVoice3SExtremeReproduction(CosyBase):
         speech = self.from_comfy(audio)
 
         prompt_speech_16k = postprocess(speech)
+
         set_all_random_seed(seed)
         output = model.inference_zero_shot(tts_text, prompt_text, prompt_speech_16k)
 
         audio = self.to_comfy(output, speed)
 
         return (audio,)
+
 
 class CosyVoiceDialogue(CosyBase):
     """Generate dialogs from voice clones (dynamic inputs).
@@ -364,14 +370,7 @@ class CosyVoiceDialogue(CosyBase):
         return {
             "required": {
                 "model": ("COSYVOICE_MODEL",),
-                "tts_text": (
-                    "STRING",
-                    {
-                        "default": DEFAULT_DIALOG,
-                        "multiline": True,
-                        "dynamicPrompts": True,
-                    },
-                ),
+                "tts_text": STRING_INPUT(True, DEFAULT_DIALOG),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "silence": (
                     "FLOAT",
@@ -487,7 +486,7 @@ class CosyVoiceNode(CosyBase):
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "tts_text": ("STRING",),
+                "tts_text": STRING_INPUT(True),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "inference_mode": (
                     inference_mode_list,
@@ -497,9 +496,9 @@ class CosyVoiceNode(CosyBase):
                 "seed": ("INT", {"default": 42}),
             },
             "optional": {
-                "prompt_text": ("STRING",),
+                "prompt_text": STRING_INPUT(),
                 "prompt_wav": ("AUDIO",),
-                "instruct_text": ("STRING",),
+                "instruct_text": STRING_INPUT(),
             },
         }
 
