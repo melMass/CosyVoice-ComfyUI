@@ -1,18 +1,18 @@
 {
-  "last_node_id": 15,
-  "last_link_id": 14,
+  "last_node_id": 19,
+  "last_link_id": 17,
   "nodes": [
     {
       "id": 13,
       "type": "LoadAudio",
       "pos": [
-        188,
-        422
+        98,
+        253
       ],
-      "size": {
-        "0": 315,
-        "1": 124
-      },
+      "size": [
+        326.68108544921853,
+        100
+      ],
       "flags": {},
       "order": 0,
       "mode": 0,
@@ -21,9 +21,10 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            13
+            15
           ],
-          "shape": 3
+          "shape": 3,
+          "slot_index": 0
         }
       ],
       "properties": {
@@ -31,8 +32,7 @@
       },
       "widgets_values": [
         "cross_lingual_prompt.wav",
-        null,
-        ""
+        null
       ]
     },
     {
@@ -53,7 +53,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 14
+          "link": 17
         }
       ],
       "properties": {
@@ -65,117 +65,105 @@
       ]
     },
     {
-      "id": 2,
-      "type": "TextNode",
+      "id": 16,
+      "type": "CosyVoiceCrossLanguageReproduction",
       "pos": [
-        77,
-        137
+        517,
+        168
       ],
       "size": {
         "0": 400,
         "1": 200
       },
       "flags": {},
-      "order": 1,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "TEXT",
-          "type": "TEXT",
-          "links": [
-            12
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "TextNode"
-      },
-      "widgets_values": [
-        "<|en|>And then later on, fully acquiring that company. So keeping management in line, interest in line with the asset that\\'s coming into the family is a reason why sometimes we don\\'t buy the whole thing."
-      ]
-    },
-    {
-      "id": 15,
-      "type": "CosyVoiceNode",
-      "pos": [
-        568,
-        105
-      ],
-      "size": {
-        "0": 315,
-        "1": 214
-      },
-      "flags": {},
       "order": 2,
       "mode": 0,
       "inputs": [
         {
-          "name": "tts_text",
-          "type": "TEXT",
-          "link": 12
-        },
-        {
-          "name": "prompt_text",
-          "type": "TEXT",
-          "link": null
+          "name": "model",
+          "type": "COSYVOICE_MODEL",
+          "link": 16,
+          "slot_index": 0
         },
         {
           "name": "prompt_wav",
           "type": "AUDIO",
-          "link": 13,
-          "slot_index": 2
-        },
-        {
-          "name": "instruct_text",
-          "type": "TEXT",
-          "link": null
+          "link": 15
         }
       ],
       "outputs": [
         {
-          "name": "AUDIO",
+          "name": "generated_audio",
           "type": "AUDIO",
           "links": [
-            14
+            17
           ],
           "shape": 3,
           "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "CosyVoiceNode"
+        "Node name for S&R": "CosyVoiceCrossLanguageReproduction"
       },
       "widgets_values": [
+        "<|en|>And then later on, fully acquiring that company. So keeping management in line, interest in line with the asset that\\'s coming into the family is a reason why sometimes we don\\'t buy the whole thing.",
         1,
-        "预训练音色",
-        "中文女",
-        42,
+        1496,
         "randomize"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "CosyVoiceLoadModel",
+      "pos": [
+        84,
+        100
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "model",
+          "type": "COSYVOICE_MODEL",
+          "links": [
+            16
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CosyVoiceLoadModel"
+      },
+      "widgets_values": [
+        "CosyVoice-300M"
       ]
     }
   ],
   "links": [
     [
-      12,
-      2,
-      0,
       15,
-      0,
-      "TEXT"
-    ],
-    [
-      13,
       13,
       0,
-      15,
-      2,
+      16,
+      1,
       "AUDIO"
     ],
     [
-      14,
-      15,
+      16,
+      17,
+      0,
+      16,
+      0,
+      "COSYVOICE_MODEL"
+    ],
+    [
+      17,
+      16,
       0,
       14,
       0,
@@ -186,10 +174,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1,
+      "scale": 0.9090909090909091,
       "offset": [
-        -6.40008544921875,
-        -2.399932861328125
+        180.2452443028478,
+        82.36729523784548
       ]
     }
   },

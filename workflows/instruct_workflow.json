@@ -1,57 +1,26 @@
 {
-  "last_node_id": 16,
-  "last_link_id": 15,
+  "last_node_id": 20,
+  "last_link_id": 20,
   "nodes": [
-    {
-      "id": 15,
-      "type": "TextNode",
-      "pos": [
-        126,
-        426
-      ],
-      "size": {
-        "0": 400,
-        "1": 200
-      },
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "TEXT",
-          "type": "TEXT",
-          "links": [
-            14
-          ],
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "TextNode"
-      },
-      "widgets_values": [
-        "Theo \\'Crimson\\', is a fiery, passionate rebel leader. Fights with fervor for justice, but struggles with impulsiveness."
-      ]
-    },
     {
       "id": 14,
       "type": "SaveAudio",
       "pos": [
-        962,
-        166
+        1129,
+        196
       ],
       "size": {
         "0": 315,
         "1": 100
       },
       "flags": {},
-      "order": 3,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 15
+          "link": 17
         }
       ],
       "properties": {
@@ -63,25 +32,119 @@
       ]
     },
     {
-      "id": 2,
-      "type": "TextNode",
+      "id": 17,
+      "type": "CosyVoiceNaturalLanguageControl",
+      "pos": [
+        660,
+        186
+      ],
+      "size": [
+        400,
+        216
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "COSYVOICE_MODEL",
+          "link": 16,
+          "slot_index": 0
+        },
+        {
+          "name": "tts_text",
+          "type": "STRING",
+          "link": 19,
+          "widget": {
+            "name": "tts_text"
+          },
+          "slot_index": 1
+        },
+        {
+          "name": "instruct_text",
+          "type": "STRING",
+          "link": 20,
+          "widget": {
+            "name": "instruct_text"
+          },
+          "slot_index": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "generated_audio",
+          "type": "AUDIO",
+          "links": [
+            17
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CosyVoiceNaturalLanguageControl"
+      },
+      "widgets_values": [
+        "Theo \\'Crimson\\', is a fiery, passionate rebel leader. Fights with fervor for justice, but struggles with impulsiveness.",
+        "He has shown remarkable <strong>courage and intelligence</strong> in the face of challenges",
+        "English Woman",
+        1,
+        1345,
+        "randomize"
+      ]
+    },
+    {
+      "id": 18,
+      "type": "CosyVoiceLoadModel",
       "pos": [
         77,
-        137
+        47
       ],
       "size": {
-        "0": 400,
-        "1": 200
+        "0": 315,
+        "1": 58
       },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "model",
+          "type": "COSYVOICE_MODEL",
+          "links": [
+            16
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CosyVoiceLoadModel"
+      },
+      "widgets_values": [
+        "CosyVoice-300M-Instruct"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "TextNode",
+      "pos": [
+        91,
+        164
+      ],
+      "size": [
+        291.6098187661436,
+        121.77117328136103
+      ],
       "flags": {},
       "order": 1,
       "mode": 0,
       "outputs": [
         {
-          "name": "TEXT",
-          "type": "TEXT",
+          "name": "STRING",
+          "type": "STRING",
           "links": [
-            13
+            19
           ],
           "shape": 3,
           "slot_index": 0
@@ -91,103 +154,84 @@
         "Node name for S&R": "TextNode"
       },
       "widgets_values": [
-        "在面对挑战时，他展现了非凡的<strong>勇气</strong>与<strong>智慧</strong>。'"
+        "He has shown remarkable <strong>courage and intelligence</strong> in the face of challenges"
       ]
     },
     {
-      "id": 16,
-      "type": "CosyVoiceNode",
+      "id": 20,
+      "type": "TextNode",
       "pos": [
-        569,
-        117
+        90,
+        345
       ],
-      "size": {
-        "0": 315,
-        "1": 214
-      },
+      "size": [
+        290.89981876614365,
+        142.32117328136104
+      ],
       "flags": {},
       "order": 2,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "tts_text",
-          "type": "TEXT",
-          "link": 13
-        },
-        {
-          "name": "prompt_text",
-          "type": "TEXT",
-          "link": null
-        },
-        {
-          "name": "prompt_wav",
-          "type": "AUDIO",
-          "link": null
-        },
-        {
-          "name": "instruct_text",
-          "type": "TEXT",
-          "link": 14,
-          "slot_index": 3
-        }
-      ],
       "outputs": [
         {
-          "name": "AUDIO",
-          "type": "AUDIO",
+          "name": "STRING",
+          "type": "STRING",
           "links": [
-            15
+            20
           ],
           "shape": 3,
           "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "CosyVoiceNode"
+        "Node name for S&R": "TextNode"
       },
       "widgets_values": [
-        1,
-        "预训练音色",
-        "中文女",
-        368,
-        "randomize"
+        "Theo \\'Crimson\\', is a fiery, passionate rebel leader. Fights with fervor for justice, but struggles with impulsiveness."
       ]
     }
   ],
   "links": [
     [
-      13,
-      2,
-      0,
       16,
+      18,
       0,
-      "TEXT"
+      17,
+      0,
+      "COSYVOICE_MODEL"
     ],
     [
-      14,
-      15,
-      0,
-      16,
-      3,
-      "TEXT"
-    ],
-    [
-      15,
-      16,
+      17,
+      17,
       0,
       14,
       0,
       "AUDIO"
+    ],
+    [
+      19,
+      19,
+      0,
+      17,
+      1,
+      "STRING"
+    ],
+    [
+      20,
+      20,
+      0,
+      17,
+      2,
+      "STRING"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1,
+      "scale": 0.7513148009015777,
       "offset": [
-        -6.40008544921875,
-        -2.399932861328125
+        311.8061812338566,
+        114.19081933338514
       ]
     }
   },
