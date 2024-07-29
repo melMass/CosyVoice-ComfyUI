@@ -1,0 +1,240 @@
+{
+  "last_node_id": 24,
+  "last_link_id": 24,
+  "nodes": [
+    {
+      "id": 14,
+      "type": "SaveAudio",
+      "pos": [
+        1166,
+        97
+      ],
+      "size": {
+        "0": 315,
+        "1": 100
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 22
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveAudio"
+      },
+      "widgets_values": [
+        "audio/ComfyUI",
+        null
+      ]
+    },
+    {
+      "id": 21,
+      "type": "CosyVoiceDialog",
+      "pos": [
+        679,
+        96
+      ],
+      "size": [
+        341.8170576091188,
+        357.6177615560533
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "COSYVOICE_MODEL",
+          "link": 21,
+          "slot_index": 0
+        },
+        {
+          "name": "A",
+          "type": "AUDIO",
+          "link": 23,
+          "label": "A"
+        },
+        {
+          "name": "B",
+          "type": "AUDIO",
+          "link": 24,
+          "label": "B"
+        },
+        {
+          "name": "C",
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "generated_audio",
+          "type": "AUDIO",
+          "links": [
+            22
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CosyVoiceDialog",
+        "dynamicInputsIndex": 1
+      },
+      "widgets_values": [
+        "A: Hi I am Niko!\nB: Hi Niko, I'm Bianca, nice to meet you\nA: Hello Bianca, is it you first time inside Comfy?\nB: No I've been there forever, I actually live there now!\nA: Oh sweet, me too!\nB: Cool\nA: Yeah\nB: Yeah\nA: Anyway!\nB: Yes I need to run, it was nice to meet you\n",
+        1,
+        -0.4,
+        1573,
+        "randomize"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "CosyVoiceLoadModel",
+      "pos": [
+        166,
+        98
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "model",
+          "type": "COSYVOICE_MODEL",
+          "links": [
+            21
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CosyVoiceLoadModel"
+      },
+      "widgets_values": [
+        "CosyVoice-300M"
+      ]
+    },
+    {
+      "id": 23,
+      "type": "LoadAudio",
+      "pos": [
+        166,
+        213
+      ],
+      "size": {
+        "0": 315,
+        "1": 100
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            23
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "niko_sample_01.wav",
+        null
+      ]
+    },
+    {
+      "id": 24,
+      "type": "LoadAudio",
+      "pos": [
+        170,
+        364
+      ],
+      "size": {
+        "0": 315,
+        "1": 100.00001525878906
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            24
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "zero_shot_prompt.wav",
+        null
+      ]
+    }
+  ],
+  "links": [
+    [
+      21,
+      22,
+      0,
+      21,
+      0,
+      "COSYVOICE_MODEL"
+    ],
+    [
+      22,
+      21,
+      0,
+      14,
+      0,
+      "AUDIO"
+    ],
+    [
+      23,
+      23,
+      0,
+      21,
+      1,
+      "AUDIO"
+    ],
+    [
+      24,
+      24,
+      0,
+      21,
+      2,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9090909090909091,
+      "offset": [
+        -102.28539863609961,
+        29.02222779213976
+      ]
+    }
+  },
+  "version": 0.4
+}
