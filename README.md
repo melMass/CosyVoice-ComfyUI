@@ -1,28 +1,30 @@
-# CosyVoice-ComfyUI
+# CosyVoice-ComfyUI (mtb fork)
 a comfyui custom node for [CosyVoice](https://github.com/FunAudioLLM/CosyVoice),you can find workflow in [workflows](./workflows/)
 
 ## new Feature
 - suport `srt` file to single voice or mutiple voice clone
 - a "dialogue" node, we the [dialogue example](./workflows/dialogue_workflow.json)
 
-input
+**input**
 - [tts_srt](./workflows/dubbing/zh_test.srt)
 - [prompt_wav](./workflows/dubbing/test.mp3)
 - [zero_shot_prompt_wav](./workflows/zero_shot_prompt.wav)
 - [cross_lingual_prompt_wav](./workflows/cross_lingual_prompt.wav)
 - [prompt_srt](./workflows/dubbing/en_test.srt)(optional)
 
-output
-
-
 ## Usage
-```
-## in ComfyUI/custom_nodes
+
+```sh
+# in ComfyUI/custom_nodes
 git clone https://github.com/melMass/CosyVoice-ComfyUI.git
 cd CosyVoice-ComfyUI
 pip install -r requirements.txt
 ```
+
 *weights will be downloaded from modelscope*
+- [CosyVoice-300M](https://huggingface.co/model-scope/CosyVoice-300M)
+- [CosyVoice-300M-Instruct](https://huggingface.co/model-scope/CosyVoice-300M-Instruct)
+- [CosyVoice-300M-SFT](https://huggingface.co/model-scope/CosyVoice-300M-SFT)
 
 ## Thanks
 - [CosyVoice-ComfyUI](https://github.com/AIFSH/CosyVoice-ComfyUI)
