@@ -114,7 +114,11 @@ const setupDynamicConnections = (nodeType, prefix, inputType, opts) => {
 
   nodeType.prototype.onNodeCreated = function () {
     const r = onNodeCreated ? onNodeCreated.apply(this, []) : undefined;
-    this.addInput(`${prefix}_1`, inputList ? "*" : inputType);
+    const input = options.nameArray ? options.nameArray[0] : `${prefix}_1`;
+
+    this.addProperty("dynamicInputsIndex", this.inputs.length);
+
+    this.addInput(input, inputList ? "*" : inputType);
     return r;
   };
 
@@ -192,28 +196,43 @@ const dynamic_connection = (
 ) => {
   /* @type {{link?:LLink, ioSlot?:INodeInputSlot | INodeOutputSlot}} [opts] - extra options*/
   const options = opts || {};
+  const nameArray = options.nameArray || [];
 
-  if (
-    node.inputs.length > 0 &&
-    !node.inputs[index].name.startsWith(connectionPrefix)
-  ) {
+  // closures used in loops
+  const isDynamicInput =
+    nameArray.length > 0
+      ? (ipt) => {
+          return nameArray.includes(ipt.name);
+        }
+      : (ipt) => {
+          return ipt.name.startsWith(connectionPrefix);
+        };
+
+  const getName =
+    nameArray.length > 0
+      ? (i) => {
+          return i < nameArray.length
+            ? nameArray[i]
+            : `${connectionPrefix}${i + 1}`;
+        }
+      : (i) => {
+          return `${connectionPrefix}${i + 1}`;
+        };
+
+  // skip non dynamic inputs
+  if (node.inputs.length > 0 && !isDynamicInput(node.inputs[index])) {
     return;
   }
-
-  const listConnection = typeof connectionType === "object";
-
-  const conType = listConnection ? "*" : connectionType;
-  const nameArray = options.nameArray || [];
 
   const clean_inputs = () => {
     if (node.inputs.length === 0) return;
 
-    let w_count = node.widgets?.length || 0;
-    let i_count = node.inputs?.length || 0;
-
     const to_remove = [];
-    for (let n = 1; n < node.inputs.length; n++) {
+    for (let n = 0; n < node.inputs.length; n++) {
       const element = node.inputs[n];
+      if (!isDynamicInput(element)) {
+        continue;
+      }
       if (!element.link) {
         if (node.widgets) {
           const w = node.widgets.find((w) => w.name === element.name);
@@ -227,21 +246,17 @@ const dynamic_connection = (
     }
     for (let i = 0; i < to_remove.length; i++) {
       const id = to_remove[i];
-
       node.removeInput(id);
-      i_count -= 1;
     }
-    node.inputs.length = i_count;
-
-    w_count = node.widgets?.length || 0;
-    i_count = node.inputs?.length || 0;
+    let w_count = node.widgets?.length || 0;
+    let i_count = node.inputs?.length || 0;
     // make inputs sequential again
-    for (let i = 0; i < node.inputs.length; i++) {
-      let name = `${connectionPrefix}${i + 1}`;
-
-      if (nameArray.length > 0) {
-        name = i < nameArray.length ? nameArray[i] : name;
+    for (let i = 0; i < i_count; i++) {
+      if (!isDynamicInput(node.inputs[i])) {
+        continue;
       }
+      const nextIndex = i - node.properties.dynamicInputsIndex;
+      const name = getName(nextIndex);
 
       node.inputs[i].label = name;
       node.inputs[i].name = name;
@@ -271,17 +286,18 @@ const dynamic_connection = (
 
     // Remove inputs and their widget if not linked.
     clean_inputs();
+    clean_inputs();
 
     if (node.inputs.length === 0) return;
     // add an extra input
     if (node.inputs[node.inputs.length - 1].link !== null) {
-      const nextIndex = node.inputs.length;
+      const nextIndex = node.inputs.length - node.properties.dynamicInputsIndex;
       const name =
         nextIndex < nameArray.length
           ? nameArray[nextIndex]
           : `${connectionPrefix}${nextIndex + 1}`;
 
-      node.addInput(name, conType);
+      node.addInput(name, connectionType);
     }
   }
 };
@@ -294,7 +310,11 @@ app.registerExtension({
     }
 
     if (nodeData?.name == "CosyVoiceDialog") {
-      setupDynamicConnections(nodeType, "voice_", "AUDIO");
+      setupDynamicConnections(nodeType, "voice_", "AUDIO", {
+        nameArray: Array.from({ length: 26 }, (_, i) =>
+          String.fromCharCode(i + 65),
+        ),
+      });
     }
   },
 });

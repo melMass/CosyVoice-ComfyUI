@@ -7,19 +7,25 @@ import os
 import sys
 import comfy.utils
 import folder_paths
+import ffmpeg
+import audiosegment
+from srt import parse as SrtPare
 
+
+from modelscope import snapshot_download
 now_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(now_dir)
 input_dir = folder_paths.get_input_directory()
 output_dir = os.path.join(folder_paths.get_output_directory(), "cosyvoice_dubb")
 pretrained_models = os.path.join(now_dir, "pretrained_models")
 
-from modelscope import snapshot_download
-
-import ffmpeg
-import audiosegment
-from srt import parse as SrtPare
 from cosyvoice.cli.cosyvoice import CosyVoice
+
+
+DEFAULT_DIALOG = """
+A: Hi I'm comfy, let's dance
+B: No!
+"""
 
 sft_spk_list = [
     "Chinese Woman",
@@ -56,7 +62,7 @@ max_val = 0.8
 prompt_sr, target_sr = 16000, 22050
 
 
-def postprocess(speech, top_db=60, hop_length=220, win_length=440):
+def postprocess(speech: torch.Tensor, top_db=60, hop_length=220, win_length=440):
     speech, _ = librosa.effects.trim(
         speech, top_db=top_db, frame_length=win_length, hop_length=hop_length
     )
@@ -95,23 +101,260 @@ def speed_change(input_audio, speed, sr):
 
 class TextNode:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "text": ("STRING", {"multiline": True, "dynamicPrompts": True})
             }
         }
 
-    RETURN_TYPES = ("TEXT",)
+    RETURN_TYPES = ("STRING",)
     FUNCTION = "encode"
 
-    CATEGORY = "AIFSH_CosyVoice"
+    CATEGORY = "CosyVoice"
 
     def encode(self, text):
         return (text,)
 
 
-class CosyVoiceDialogue:
+class CosyVoiceLoadModel:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (
+                    ("CosyVoice-300M", "CosyVoice-300M-Instruct", "CosyVoice-300M-SFT"),
+                    {"default": "CosyVoice-300M"},
+                ),
+            },
+        }
+
+    RETURN_TYPES = ("COSYVOICE_MODEL",)
+    RETURN_NAMES = ("model",)
+
+    FUNCTION = "load"
+
+    CATEGORY = "AIFSH_CosyVoice"
+
+    def load(self, model):
+        model_dir = os.path.join(pretrained_models, model)
+        snapshot_download(model_id=f"iic/{model}", local_dir=model_dir)
+        # self.model_dir = model_dir
+        return (CosyVoice(model_dir),)
+
+
+def ms(samples, sample_rate):
+    return samples / sample_rate * 1000
+
+
+class CosyBase:
+    @classmethod
+    def cut_audio(cls, audio, max_length_ms=25000, *, report=False):
+        sample_rate = audio["sample_rate"]
+        input_duration = ms(len(audio["waveform"][0][0]), sample_rate)
+        if report:
+            print(f"Input duration: {input_duration} ms")
+
+        max_length_samples = int(max_length_ms * sample_rate / 1000)
+        cut_waveform = audio["waveform"][:, :, :max_length_samples]
+        output_duration = ms(len(cut_waveform[0][0]), sample_rate)
+        if report:
+            print(f"Output duration: {output_duration} ms")
+            reduction_percentage = (
+                (input_duration - output_duration) / input_duration
+            ) * 100
+            print(f"Percentage of reduction: {reduction_percentage}%")
+
+        return {
+            "sample_rate": sample_rate,
+            "waveform": cut_waveform,
+        }
+
+    @classmethod
+    def to_comfy(cls, inference_output, speed):
+        output_numpy = inference_output["tts_speech"].squeeze(0).numpy() * 32768
+        output_numpy = output_numpy.astype(np.int16)
+        output_numpy = speed_change(output_numpy, speed, target_sr)
+
+        return {
+            "waveform": torch.stack([torch.Tensor(output_numpy / 32768).unsqueeze(0)]),
+            "sample_rate": target_sr,
+        }
+
+    @classmethod
+    def from_comfy(cls, audio) -> torch.Tensor:
+        waveform = audio["waveform"].squeeze(0)
+        source_sr = audio["sample_rate"]
+        speech = waveform.mean(dim=0, keepdim=True)
+        if source_sr != prompt_sr:
+            speech = torchaudio.transforms.Resample(
+                orig_freq=source_sr, new_freq=prompt_sr
+            )(speech)
+
+        return speech
+
+
+class CosyVoicePretrainedTones(CosyBase):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("COSYVOICE_MODEL",),
+                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "sft": (sft_spk_list, {"default": "English Woman"}),
+                "speed": ("FLOAT", {"default": 1.0}),
+                "seed": ("INT", {"default": 42}),
+            }
+        }
+
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("generated_audio",)
+
+    FUNCTION = "process"
+
+    CATEGORY = "CosyVoice"
+
+    def process(
+        self, model: CosyVoice, tts_text: str, sft: str, speed: float, seed: int
+    ):
+        sft_cn = sfts[sft]
+        set_all_random_seed(seed)
+        output = model.inference_sft(tts_text, sft_cn)
+
+        return (self.to_comfy(output, speed),)
+
+
+class CosyVoiceNaturalLanguageControl(CosyBase):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("COSYVOICE_MODEL",),
+                "instruct_text": ("STRING",),
+                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "sft": (sft_spk_list, {"default": "English Woman"}),
+                "speed": ("FLOAT", {"default": 1.0}),
+                "seed": ("INT", {"default": 42}),
+            }
+        }
+
+    INPUT_NAMES = ("model (instruct)",)
+
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("generated_audio",)
+
+    FUNCTION = "process"
+
+    CATEGORY = "CosyVoice"
+
+    def process(
+        self,
+        model: CosyVoice,
+        instruct_text: str,
+        tts_text: str,
+        sft: str,
+        speed: float,
+        seed: int,
+    ):
+        sft_cn = sfts[sft]
+        set_all_random_seed(seed)
+        output = model.inference_instruct(tts_text, sft_cn, instruct_text)
+
+        audio = self.to_comfy(output, speed)
+
+        return (audio,)
+
+
+class CosyVoiceCrossLanguageReproduction(CosyBase):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("COSYVOICE_MODEL",),
+                "prompt_wav": ("AUDIO",),
+                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "speed": ("FLOAT", {"default": 1.0}),
+                "seed": ("INT", {"default": 42}),
+            }
+        }
+
+    INPUT_NAMES = ("model",)
+
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("generated_audio",)
+
+    FUNCTION = "process"
+
+    CATEGORY = "CosyVoice"
+
+    def process(
+        self,
+        model: CosyVoice,
+        prompt_wav: dict,
+        tts_text: str,
+        speed: float,
+        seed: int,
+    ):
+        speech = self.from_comfy(prompt_wav)
+        prompt_speech_16k = postprocess(speech)
+        set_all_random_seed(seed)
+        output = model.inference_cross_lingual(tts_text, prompt_speech_16k)
+        audio = self.to_comfy(output, speed)
+
+        return (audio,)
+
+
+class CosyVoice3SExtremeReproduction(CosyBase):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("COSYVOICE_MODEL",),
+                "prompt_text": ("STRING",),
+                "prompt_wav": ("AUDIO",),
+                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "speed": ("FLOAT", {"default": 1.0}),
+                "seed": ("INT", {"default": 42}),
+            }
+        }
+
+    INPUT_NAMES = ("model",)
+
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("generated_audio",)
+
+    FUNCTION = "process"
+
+    CATEGORY = "CosyVoice"
+
+    def process(
+        self,
+        model: CosyVoice,
+        prompt_text: str,
+        prompt_wav: dict,
+        tts_text: str,
+        speed: float,
+        seed: int,
+    ):
+        audio = self.cut_audio(prompt_wav, 3000, report=True)
+        speech = self.from_comfy(audio)
+
+        prompt_speech_16k = postprocess(speech)
+        set_all_random_seed(seed)
+        output = model.inference_zero_shot(tts_text, prompt_text, prompt_speech_16k)
+
+        audio = self.to_comfy(output, speed)
+
+        return (audio,)
+
+class CosyVoiceDialogue(CosyBase):
+    """Generate dialogs from voice clones (dynamic inputs).
+
+    Internal Preprocess:
+        - Match sample rates to the highest.
+        - Cut voices to 25s.
+    """
+
     def __init__(self):
         self.model_dir = None
         self.cosyvoice = None
@@ -120,9 +363,20 @@ class CosyVoiceDialogue:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "tts_text": ("STRING", {"multiline": True, "dynamicPrompts": True}),
+                "model": ("COSYVOICE_MODEL",),
+                "tts_text": (
+                    "STRING",
+                    {
+                        "default": DEFAULT_DIALOG,
+                        "multiline": True,
+                        "dynamicPrompts": True,
+                    },
+                ),
                 "speed": ("FLOAT", {"default": 1.0}),
-                "silence": ("FLOAT", {"default": 0.5}),
+                "silence": (
+                    "FLOAT",
+                    {"default": 0.0, "min": -9999, "max": 9999, "step": 0.1},
+                ),
                 "seed": ("INT", {"default": 42}),
             },
         }
@@ -132,7 +386,7 @@ class CosyVoiceDialogue:
 
     FUNCTION = "generate"
 
-    CATEGORY = "AIFSH_CosyVoice"
+    CATEGORY = "CosyVoice"
 
     def map(self, voices):
         return {chr(65 + i): voice for i, voice in enumerate(voices)}
@@ -141,7 +395,11 @@ class CosyVoiceDialogue:
         lines = tts_text.split("\n")
         result = []
         for line in lines:
+            line = line.strip()
+            if not line:
+                continue
             speaker, dialog = line.split(": ", 1)
+            speaker = speaker.upper()
             if speaker in voice_map:
                 voice_tensor = voice_map[speaker]
                 result.append((speaker, voice_tensor, dialog))
@@ -154,63 +412,65 @@ class CosyVoiceDialogue:
             if audio["sample_rate"] != sample_rate:
                 raise ValueError("All sample rates must be equal")
 
-        silence = torch.zeros((1, 1, int(silence_duration * sample_rate)))
-
         sequence = []
         for i, audio in enumerate(audios):
-            sequence.append(audio["waveform"])
-            if i < len(audios) - 1:
-                sequence.append(silence)
+            if i > 0 and silence_duration != 0:
+                if silence_duration > 0:
+                    silence = torch.zeros((1, 1, int(silence_duration * sample_rate)))
+                    sequence.append(silence)
+                else:
+                    overlap = int(abs(silence_duration) * sample_rate)
+                    previous_audio = sequence[-1]
 
+                    if (
+                        previous_audio.shape[-1] < overlap
+                        or audio["waveform"].shape[-1] < overlap
+                    ):
+                        actual_overlap = min(
+                            previous_audio.shape[-1], audio["waveform"].shape[-1]
+                        )
+                        print(
+                            f"Warning: Overlap duration exceeds audio segment length. Using actual overlap: {actual_overlap/sample_rate:.2f}s instead of {overlap/sample_rate:.2f}s."
+                        )
+                        overlap = actual_overlap
+
+                    overlap_part = (
+                        previous_audio[:, :, -overlap:]
+                        + audio["waveform"][:, :, :overlap]
+                    )
+                    sequence[-1] = previous_audio[:, :, :-overlap]
+                    sequence.append(overlap_part)
+                    audio["waveform"] = audio["waveform"][:, :, overlap:]
+
+            sequence.append(audio["waveform"])
         sequenced_waveform = torch.cat(sequence, dim=-1)
         return {"sample_rate": sample_rate, "waveform": sequenced_waveform}
 
     def generate(
         self,
+        model: CosyVoice,
         tts_text: str,
         speed: float,
         silence: float,
         seed: int,
         **kwargs: dict[str, torch.Tensor],
     ):
-        voices = kwargs.values()
+        voices = [self.cut_audio(voice_tensor) for voice_tensor in kwargs.values()]
         voice_map = self.map(voices)
 
         text_map = self.zip_dialog(tts_text, voice_map)
-        print(text_map)
 
         outputs = []
-
-        # TODO: move to a load node
-        model_dir = os.path.join(pretrained_models, "CosyVoice-300M")
-        snapshot_download(model_id="iic/CosyVoice-300M", local_dir=model_dir)
-        self.model_dir = model_dir
-        self.cosyvoice = CosyVoice(model_dir)
 
         pbar = comfy.utils.ProgressBar(len(text_map))
         for line in text_map:
             _speaker, voice_tensor, text = line
 
-            waveform = voice_tensor["waveform"].squeeze(0)
-            source_sr = voice_tensor["sample_rate"]
-            speech = waveform.mean(dim=0, keepdim=True)
-
-            if source_sr != prompt_sr:
-                speech = torchaudio.transforms.Resample(
-                    orig_freq=source_sr, new_freq=prompt_sr
-                )(speech)
+            speech = self.from_comfy(voice_tensor)
             prompt_speech_16k = postprocess(speech)
             set_all_random_seed(seed)
-            infered = self.cosyvoice.inference_cross_lingual(text, prompt_speech_16k)
-            output_numpy = infered["tts_speech"].squeeze(0).numpy() * 32768
-            output_numpy = output_numpy.astype(np.int16)
-            output_numpy = speed_change(output_numpy, speed, target_sr)
-            audio = {
-                "waveform": torch.stack(
-                    [torch.Tensor(output_numpy / 32768).unsqueeze(0)]
-                ),
-                "sample_rate": target_sr,
-            }
+            infered = model.inference_cross_lingual(text, prompt_speech_16k)
+            audio = self.to_comfy(infered, speed)
             outputs.append(audio)
             pbar.update(1)
 
@@ -218,7 +478,7 @@ class CosyVoiceDialogue:
         return (stacked_voices,)
 
 
-class CosyVoiceNode:
+class CosyVoiceNode(CosyBase):
     def __init__(self):
         self.model_dir = None
         self.cosyvoice = None
@@ -227,7 +487,7 @@ class CosyVoiceNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "tts_text": ("TEXT",),
+                "tts_text": ("STRING",),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "inference_mode": (
                     inference_mode_list,
@@ -237,9 +497,9 @@ class CosyVoiceNode:
                 "seed": ("INT", {"default": 42}),
             },
             "optional": {
-                "prompt_text": ("TEXT",),
+                "prompt_text": ("STRING",),
                 "prompt_wav": ("AUDIO",),
-                "instruct_text": ("TEXT",),
+                "instruct_text": ("STRING",),
             },
         }
 
@@ -250,7 +510,7 @@ class CosyVoiceNode:
 
     # OUTPUT_NODE = False
 
-    CATEGORY = "AIFSH_CosyVoice"
+    CATEGORY = "CosyVoice"
 
     def generate(
         self,
@@ -333,13 +593,7 @@ class CosyVoiceNode:
                 tts_text, sft_dropdown_cn, instruct_text
             )
 
-        output_numpy = output["tts_speech"].squeeze(0).numpy() * 32768
-        output_numpy = output_numpy.astype(np.int16)
-        output_numpy = speed_change(output_numpy, speed, target_sr)
-        audio = {
-            "waveform": torch.stack([torch.Tensor(output_numpy / 32768).unsqueeze(0)]),
-            "sample_rate": target_sr,
-        }
+        audio = self.to_comfy(output, speed)
         return (audio,)
 
 
@@ -348,7 +602,7 @@ class CosyVoiceDubbingNode:
         self.cosyvoice = None
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "tts_srt": ("SRT",),
@@ -369,7 +623,7 @@ class CosyVoiceDubbingNode:
 
     # OUTPUT_NODE = False
 
-    CATEGORY = "AIFSH_CosyVoice"
+    CATEGORY = "CosyVoice"
 
     def generate(self, tts_srt, prompt_wav, language, if_single, seed, prompt_srt=None):
         model_dir = os.path.join(pretrained_models, "CosyVoice-300M")
@@ -521,7 +775,7 @@ class CosyVoiceDubbingNode:
 
 class LoadSRT:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         files = [
             f
             for f in os.listdir(input_dir)
@@ -532,7 +786,7 @@ class LoadSRT:
             "required": {"srt": (sorted(files),)},
         }
 
-    CATEGORY = "AIFSH_CosyVoice"
+    CATEGORY = "CosyVoice"
 
     RETURN_TYPES = ("SRT",)
     FUNCTION = "load_srt"
