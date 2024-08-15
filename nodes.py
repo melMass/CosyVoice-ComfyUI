@@ -178,7 +178,8 @@ class CosyBase:
     def to_comfy(cls, inference_output, speed):
         output_numpy = inference_output["tts_speech"].squeeze(0).numpy() * 32768
         output_numpy = output_numpy.astype(np.int16)
-        output_numpy = speed_change(output_numpy, speed, target_sr)
+        if speed != 1.0:
+            output_numpy = speed_change(output_numpy, speed, target_sr)
 
         return {
             "waveform": torch.stack([torch.Tensor(output_numpy / 32768).unsqueeze(0)]),
@@ -397,7 +398,7 @@ class CosyVoiceDialogue(CosyBase):
             line = line.strip()
             if not line:
                 continue
-            speaker, dialog = line.split(": ", 1)
+            speaker, dialog = line.split(":", 1)
             speaker = speaker.upper()
             if speaker in voice_map:
                 voice_tensor = voice_map[speaker]
