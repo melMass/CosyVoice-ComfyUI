@@ -176,13 +176,18 @@ class CosyBase:
 
     @classmethod
     def to_comfy(cls, inference_output, speed):
-        output_numpy = inference_output["tts_speech"].squeeze(0).numpy() * 32768
-        output_numpy = output_numpy.astype(np.int16)
-        if speed != 1.0:
-            output_numpy = speed_change(output_numpy, speed, target_sr)
+
+        tensors = []
+        for inf in inference_output:
+            output_numpy = inf["tts_speech"].squeeze(0).numpy() * 32768
+            output_numpy = output_numpy.astype(np.int16)
+            if speed != 1.0:
+                output_numpy = speed_change(output_numpy, speed, target_sr)
+
+            tensors.append(torch.Tensor(output_numpy / 32768).unsqueeze(0))
 
         return {
-            "waveform": torch.stack([torch.Tensor(output_numpy / 32768).unsqueeze(0)]),
+            "waveform": torch.stack(tensors, dim=0),
             "sample_rate": target_sr,
         }
 

@@ -46,33 +46,31 @@ def pad_list(xs: List[torch.Tensor], pad_value: int):
     batchs = len(xs)
     ndim = xs[0].ndim
     if ndim == 1:
-        pad_res = torch.zeros(batchs,
-                              max_len,
-                              dtype=xs[0].dtype,
-                              device=xs[0].device)
+        pad_res = torch.zeros(batchs, max_len, dtype=xs[0].dtype, device=xs[0].device)
     elif ndim == 2:
-        pad_res = torch.zeros(batchs,
-                              max_len,
-                              xs[0].shape[1],
-                              dtype=xs[0].dtype,
-                              device=xs[0].device)
+        pad_res = torch.zeros(
+            batchs, max_len, xs[0].shape[1], dtype=xs[0].dtype, device=xs[0].device
+        )
     elif ndim == 3:
-        pad_res = torch.zeros(batchs,
-                              max_len,
-                              xs[0].shape[1],
-                              xs[0].shape[2],
-                              dtype=xs[0].dtype,
-                              device=xs[0].device)
+        pad_res = torch.zeros(
+            batchs,
+            max_len,
+            xs[0].shape[1],
+            xs[0].shape[2],
+            dtype=xs[0].dtype,
+            device=xs[0].device,
+        )
     else:
         raise ValueError(f"Unsupported ndim: {ndim}")
     pad_res.fill_(pad_value)
     for i in range(batchs):
-        pad_res[i, :len(xs[i])] = xs[i]
+        pad_res[i, : len(xs[i])] = xs[i]
     return pad_res
 
 
-def th_accuracy(pad_outputs: torch.Tensor, pad_targets: torch.Tensor,
-                ignore_label: int) -> torch.Tensor:
+def th_accuracy(
+    pad_outputs: torch.Tensor, pad_targets: torch.Tensor, ignore_label: int
+) -> torch.Tensor:
     """Calculate accuracy.
 
     Args:
@@ -84,11 +82,13 @@ def th_accuracy(pad_outputs: torch.Tensor, pad_targets: torch.Tensor,
         torch.Tensor: Accuracy value (0.0 - 1.0).
 
     """
-    pad_pred = pad_outputs.view(pad_targets.size(0), pad_targets.size(1),
-                                pad_outputs.size(1)).argmax(2)
+    pad_pred = pad_outputs.view(
+        pad_targets.size(0), pad_targets.size(1), pad_outputs.size(1)
+    ).argmax(2)
     mask = pad_targets != ignore_label
     numerator = torch.sum(
-        pad_pred.masked_select(mask) == pad_targets.masked_select(mask))
+        pad_pred.masked_select(mask) == pad_targets.masked_select(mask)
+    )
     denominator = torch.sum(mask)
     return (numerator / denominator).detach()
 
@@ -101,3 +101,60 @@ def init_weights(m, mean=0.0, std=0.01):
     classname = m.__class__.__name__
     if classname.find("Conv") != -1:
         m.weight.data.normal_(mean, std)
+
+
+# Repetition Aware Sampling in VALL-E 2
+def ras_sampling(
+    weighted_scores,
+    decoded_tokens,
+    sampling,
+    top_p=0.8,
+    top_k=25,
+    win_size=10,
+    tau_r=0.1,
+):
+    top_ids = nucleus_sampling(weighted_scores, top_p=top_p, top_k=top_k)
+    rep_num = (
+        (torch.tensor(decoded_tokens[-win_size:]).to(weighted_scores.device) == top_ids)
+        .sum()
+        .item()
+    )
+    if rep_num >= win_size * tau_r:
+        top_ids = random_sampling(weighted_scores, decoded_tokens, sampling)
+    return top_ids
+
+
+def nucleus_sampling(weighted_scores, top_p=0.8, top_k=25):
+    prob, indices = [], []
+    cum_prob = 0.0
+    sorted_value, sorted_idx = weighted_scores.softmax(dim=0).sort(
+        descending=True, stable=True
+    )
+    for i in range(len(sorted_idx)):
+        # sampling both top-p and numbers.
+        if cum_prob < top_p and len(prob) < top_k:
+            cum_prob += sorted_value[i]
+            prob.append(sorted_value[i])
+            indices.append(sorted_idx[i])
+        else:
+            break
+    prob = torch.tensor(prob).to(weighted_scores)
+    indices = torch.tensor(indices, dtype=torch.long).to(weighted_scores.device)
+    top_ids = indices[prob.multinomial(1, replacement=True)]
+    return top_ids
+
+
+def random_sampling(weighted_scores, decoded_tokens, sampling):
+    top_ids = weighted_scores.softmax(dim=0).multinomial(1, replacement=True)
+    return top_ids
+
+
+def fade_in_out(fade_in_mel, fade_out_mel, window):
+    device = fade_in_mel.device
+    fade_in_mel, fade_out_mel = fade_in_mel.cpu(), fade_out_mel.cpu()
+    mel_overlap_len = int(window.shape[0] / 2)
+    fade_in_mel[:, :, :mel_overlap_len] = (
+        fade_in_mel[:, :, :mel_overlap_len] * window[:mel_overlap_len]
+        + fade_out_mel[:, :, -mel_overlap_len:] * window[mel_overlap_len:]
+    )
+    return fade_in_mel.to(device)
