@@ -15,6 +15,7 @@ from typing import Dict, Optional, Callable, List, Generator
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch.cuda.amp import autocast
 from torch.nn.utils.rnn import pad_sequence, unpad_sequence
 from cosyvoice.utils.common import IGNORE_ID
 from cosyvoice.transformer.label_smoothing_loss import LabelSmoothingLoss
@@ -129,56 +130,57 @@ class TransformerLM(torch.nn.Module):
         speech_token_len = batch["speech_token_len"].to(device)
         embedding = batch["embedding"].to(device)
 
-        # 1. prepare llm_target
-        lm_target = [
-            torch.tensor(
-                [IGNORE_ID] * (2 + text_token_len[i])
-                + speech_token[i, : speech_token_len[i]].tolist()
-                + [self.speech_token_size]
+        with autocast():
+            # 1. prepare llm_target
+            lm_target = [
+                torch.tensor(
+                    [IGNORE_ID] * (2 + text_token_len[i])
+                    + speech_token[i, : speech_token_len[i]].tolist()
+                    + [self.speech_token_size]
+                )
+                for i in range(text_token.size(0))
+            ]
+            lm_target = pad_sequence(
+                lm_target, batch_first=True, padding_value=IGNORE_ID
+            ).to(device)
+
+            # 1. encode text_token
+            text_token = self.text_embedding(text_token)
+            text_token, text_token_len = self.encode(text_token, text_token_len)
+
+            # 2. embedding projection
+            embedding = F.normalize(embedding, dim=1)
+            embedding = self.spk_embed_affine_layer(embedding)
+            embedding = embedding.unsqueeze(1)
+
+            # 3. eos and task_id
+            sos_eos_emb = self.llm_embedding.weight[self.sos_eos].reshape(1, 1, -1)
+            task_id_emb = self.llm_embedding.weight[self.task_id].reshape(1, 1, -1)
+
+            # 4. encode speech_token
+            speech_token = self.speech_embedding(speech_token)
+
+            # 5. unpad and pad
+            lm_input, lm_input_len = self.pad_unpad_sequence(
+                sos_eos_emb,
+                embedding,
+                text_token,
+                text_token_len,
+                task_id_emb,
+                speech_token,
+                speech_token_len,
             )
-            for i in range(text_token.size(0))
-        ]
-        lm_target = pad_sequence(
-            lm_target, batch_first=True, padding_value=IGNORE_ID
-        ).to(device)
 
-        # 1. encode text_token
-        text_token = self.text_embedding(text_token)
-        text_token, text_token_len = self.encode(text_token, text_token_len)
-
-        # 2. embedding projection
-        embedding = F.normalize(embedding, dim=1)
-        embedding = self.spk_embed_affine_layer(embedding)
-        embedding = embedding.unsqueeze(1)
-
-        # 3. eos and task_id
-        sos_eos_emb = self.llm_embedding.weight[self.sos_eos].reshape(1, 1, -1)
-        task_id_emb = self.llm_embedding.weight[self.task_id].reshape(1, 1, -1)
-
-        # 4. encode speech_token
-        speech_token = self.speech_embedding(speech_token)
-
-        # 5. unpad and pad
-        lm_input, lm_input_len = self.pad_unpad_sequence(
-            sos_eos_emb,
-            embedding,
-            text_token,
-            text_token_len,
-            task_id_emb,
-            speech_token,
-            speech_token_len,
-        )
-
-        # 6. run lm forward
-        lm_output, lm_output_mask = self.llm(lm_input, lm_input_len.to(device))
-        logits = self.llm_decoder(lm_output)
-        loss = self.criterion_ce(logits, lm_target)
-        acc = th_accuracy(
-            logits.view(-1, self.speech_token_size + 1),
-            lm_target,
-            ignore_label=IGNORE_ID,
-        )
-        return {"loss": loss, "acc": acc}
+            # 6. run lm forward
+            lm_output, lm_output_mask = self.llm(lm_input, lm_input_len.to(device))
+            logits = self.llm_decoder(lm_output)
+            loss = self.criterion_ce(logits, lm_target)
+            acc = th_accuracy(
+                logits.view(-1, self.speech_token_size + 1),
+                lm_target,
+                ignore_label=IGNORE_ID,
+            )
+            return {"loss": loss, "acc": acc}
 
     def sampling_ids(
         self,
