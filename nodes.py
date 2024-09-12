@@ -10,11 +10,10 @@ import comfy.utils
 import folder_paths
 import ffmpeg
 import audiosegment
-from srt import parse as SrtPare
+from srt import parse as srt_parse
 
 from modelscope import snapshot_download
 from pathlib import Path
-import json
 
 now_dir = Path(__file__).parent.resolve()
 sys.path.append(now_dir.as_posix())
@@ -29,25 +28,35 @@ max_val = 0.8
 prompt_sr, target_sr = 16000, 22050
 ModelKind = Literal["base", "sft", "instruct"]
 
-MODEL_SETTINGS = {}
-with (now_dir / "models_settings.json").open(encoding="UTF-8") as source:
-    MODEL_SETTINGS = json.load(source)
+# This doesn't work since
+# https://github.com/modelscope/modelscope/blob/51b33cecefed4daad3dccc47e0da60d5923ce8de/modelscope/hub/snapshot_download.py#L51
+# MODEL_SETTINGS = {}
+# with (now_dir / "models_settings.json").open(encoding="UTF-8") as source:
+#     MODEL_SETTINGS = json.load(source)
+
+model_prefix = "CosyVoice-300M"
+MODEL_MAP = {
+    "base": model_prefix,
+    "sft": f"{model_prefix}-SFT",
+    "instruct": f"{model_prefix}-Instruct",
+}
 
 
-def get_model(kind: ModelKind, *, autodownload: bool = True):
-    settings = MODEL_SETTINGS[kind]
-    name = settings["name"]
-    rev = settings["revision"]
+def get_model(kind: ModelKind, *, auto_download: bool = True):
+    # settings = MODEL_SETTINGS[kind]
+    # name = settings["name"]
+    # rev = settings["revision"]
+    name = MODEL_MAP[kind]
 
-    model_dir = (pretrained_models / name).as_posix()
-    if autodownload:
-        model_dir = snapshot_download(
+    model_dir = pretrained_models / name
+    if auto_download:
+        snapshot_download(
             model_id=f"iic/{name}",
-            local_files_only=True,
-            local_dir=model_dir,
-            revision=rev,
+            local_dir=model_dir.as_posix(),
+            # revision=rev,
         )
-    return model_dir
+    if model_dir.exists():
+        return model_dir.as_posix()
 
 
 def STRING_INPUT(multi=False, default_val=""):
@@ -165,6 +174,7 @@ class CosyVoiceLoadModel:
                     {"default": "base"},
                 ),
             },
+            "optional": {"auto_download": ("BOOLEAN", {"default": True})},
         }
 
     RETURN_TYPES = ("COSYVOICE_MODEL",)
@@ -174,8 +184,19 @@ class CosyVoiceLoadModel:
 
     CATEGORY = "CosyVoice"
 
-    def load(self, model: ModelKind):
-        model_dir = get_model(model)
+    def load(self, model: ModelKind, auto_download=True):
+        model_dir = get_model(model, auto_download=auto_download)
+        name = MODEL_MAP[model]
+        if model_dir is None and auto_download is False:
+            raise ValueError(f"""
+            Model not found locally.
+            You can:
+            - set auto_download to True (this will download {name} to {pretrained_models})
+            - move the files to {pretrained_models / name}
+
+            To download the files manually check "https://www.modelscope.cn/models/iic/{name}"
+
+            """)
         return (CosyVoice(model_dir),)
 
 
@@ -672,12 +693,12 @@ class CosyVoiceDubbingNode:
 
         with open(tts_srt, "r", encoding="utf-8") as file:
             text_file_content = file.read()
-        text_subtitles = list(SrtPare(text_file_content))
+        text_subtitles = list(srt_parse(text_file_content))
 
         if prompt_srt:
             with open(prompt_srt, "r", encoding="utf-8") as file:
                 prompt_file_content = file.read()
-            prompt_subtitles = list(SrtPare(prompt_file_content))
+            prompt_subtitles = list(srt_parse(prompt_file_content))
 
         waveform = prompt_wav["waveform"].squeeze(0)
         source_sr = prompt_wav["sample_rate"]
@@ -696,6 +717,7 @@ class CosyVoiceDubbingNode:
             raise ValueError("prompt wav should be > 3s")
 
         # audio_seg.export(os.path.join(output_dir,"test.mp3"),format="mp3")
+
         pbar = comfy.utils.ProgressBar(len(text_subtitles))
         new_audio_seg = audiosegment.silent(0, target_sr)
         for i, text_sub in enumerate(text_subtitles):
