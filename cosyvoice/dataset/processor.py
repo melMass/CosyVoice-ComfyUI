@@ -21,7 +21,7 @@ import torchaudio
 from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 
-torchaudio.set_audio_backend("soundfile")
+# torchaudio.set_audio_backend("soundfile")
 
 AUDIO_FORMAT_SETS = set(["flac", "mp3", "m4a", "ogg", "opus", "wav", "wma"])
 

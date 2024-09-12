@@ -108,6 +108,11 @@ def speed_change(input_audio, speed, sr):
     # Check input data type and number of channels
     if input_audio.dtype != np.int16:
         raise ValueError("The input audio data type must be np.int16")
+    if speed < 0:
+        print(
+            "Speed change error, a negative value was passed, returning original audio"
+        )
+        return input_audio
 
     # Convert to byte stream
     raw_audio = input_audio.astype(np.int16).tobytes()
@@ -120,15 +125,20 @@ def speed_change(input_audio, speed, sr):
     # Variable speed handling
     output_stream = input_stream.filter("atempo", speed)
 
-    # Output stream to pipeline
-    out, _ = output_stream.output("pipe:", format="s16le", acodec="pcm_s16le").run(
-        input=raw_audio, capture_stdout=True, capture_stderr=True
-    )
+    try:
+        # Output stream to pipeline
+        out, _ = output_stream.output("pipe:", format="s16le", acodec="pcm_s16le").run(
+            input=raw_audio, capture_stdout=True, capture_stderr=True
+        )
 
-    # Decode the pipeline output into NumPy arrays
-    processed_audio = np.frombuffer(out, np.int16)
+        # Decode the pipeline output into NumPy arrays
+        processed_audio = np.frombuffer(out, np.int16)
 
-    return processed_audio
+        return processed_audio
+    except ffmpeg.Error as e:
+        print("stdout:", e.stdout.decode("utf8"))
+        print("stderr:", e.stderr.decode("utf8"))
+        raise e
 
 
 class TextNode:
