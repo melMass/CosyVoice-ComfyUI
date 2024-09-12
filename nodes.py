@@ -686,6 +686,7 @@ class CosyVoiceDubbingNode:
             raise ValueError("prompt wav should be > 3s")
 
         # audio_seg.export(os.path.join(output_dir,"test.mp3"),format="mp3")
+        pbar = comfy.utils.ProgressBar(len(text_subtitles))
         new_audio_seg = audiosegment.silent(0, target_sr)
         for i, text_sub in enumerate(text_subtitles):
             start_time = text_sub.start.total_seconds() * 1000
@@ -798,6 +799,7 @@ class CosyVoiceDubbingNode:
 
                 if i == len(text_subtitles) - 1:
                     new_audio_seg += audio_seg[end_time:]
+            pbar.update(1)
 
         output_numpy = new_audio_seg.to_numpy_array() / 32768
         # print(output_numpy.shape)
