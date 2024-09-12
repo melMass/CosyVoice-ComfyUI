@@ -1,0 +1,14 @@
+{
+    "base": {
+        "name": "CosyVoice-300M",
+        "revision": "b34974486bcb632e57ed9bf2db5c5b98872de90e"
+    },
+    "sft": {
+        "name": "CosyVoice-300M-SFT",
+        "revision": "c65b50979a0ac9da952763267f950d9666369cd5"
+    },
+    "instruct": {
+        "name": "CosyVoice-300M-Instruct",
+        "revision": "efb6e671678af8c0cc36e35aa675dd4898d0c519"
+    }
+}
