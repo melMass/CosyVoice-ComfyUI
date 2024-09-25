@@ -3,40 +3,12 @@
   "last_link_id": 12,
   "nodes": [
     {
-      "id": 3,
-      "type": "PreviewAudio",
-      "pos": [
-        1033,
-        190
-      ],
-      "size": [
-        328.3988344302013,
-        90.29530841626001
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 12
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewAudio"
-      },
-      "widgets_values": [
-        null
-      ]
-    },
-    {
       "id": 13,
       "type": "CosyVoicePretrainedTones",
-      "pos": [
-        557,
-        191
-      ],
+      "pos": {
+        "0": 557,
+        "1": 191
+      },
       "size": {
         "0": 400,
         "1": 200
@@ -59,8 +31,8 @@
           "links": [
             12
           ],
-          "shape": 3,
-          "slot_index": 0
+          "slot_index": 0,
+          "shape": 3
         }
       ],
       "properties": {
@@ -70,24 +42,25 @@
         "Hi, I'm Tania, a generative speech model, how can I help you?",
         "English Woman",
         1,
-        817,
+        1091,
         "randomize"
       ]
     },
     {
       "id": 14,
       "type": "CosyVoiceLoadModel",
-      "pos": [
-        187,
-        191
-      ],
+      "pos": {
+        "0": 187,
+        "1": 191
+      },
       "size": {
         "0": 315,
-        "1": 58
+        "1": 82
       },
       "flags": {},
       "order": 0,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "model",
@@ -102,7 +75,37 @@
         "Node name for S&R": "CosyVoiceLoadModel"
       },
       "widgets_values": [
-        "CosyVoice-300M-SFT"
+        "sft",
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "type": "PreviewAudio",
+      "pos": {
+        "0": 1033,
+        "1": 190
+      },
+      "size": {
+        "0": 328.3988342285156,
+        "1": 90.2953109741211
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 12
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": [
+        null
       ]
     }
   ],
@@ -130,8 +133,8 @@
     "ds": {
       "scale": 1,
       "offset": [
-        12.760580910280794,
-        17.093104331718067
+        -151.90370362918793,
+        192.3127456422582
       ]
     }
   },

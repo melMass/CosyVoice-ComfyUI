@@ -3,44 +3,15 @@
   "last_link_id": 24,
   "nodes": [
     {
-      "id": 14,
-      "type": "SaveAudio",
-      "pos": [
-        1166,
-        97
-      ],
-      "size": {
-        "0": 315,
-        "1": 100
-      },
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 22
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SaveAudio"
-      },
-      "widgets_values": [
-        "audio/ComfyUI",
-        null
-      ]
-    },
-    {
       "id": 21,
       "type": "CosyVoiceDialog",
-      "pos": [
-        679,
-        96
-      ],
+      "pos": {
+        "0": 589,
+        "1": 28
+      },
       "size": [
-        341.8170576091188,
-        357.6177615560533
+        410.90370362918793,
+        529.0872482542262
       ],
       "flags": {},
       "order": 3,
@@ -77,8 +48,8 @@
           "links": [
             22
           ],
-          "shape": 3,
-          "slot_index": 0
+          "slot_index": 0,
+          "shape": 3
         }
       ],
       "properties": {
@@ -86,27 +57,58 @@
         "dynamicInputsIndex": 1
       },
       "widgets_values": [
-        "A: Hi I am Niko!\nB: Hi Niko, I'm Bianca, nice to meet you\nA: Hello Bianca, is it you first time inside Comfy?\nB: No I've been there forever, I actually live there now!\nA: Oh sweet, me too!\nB: Cool\nA: Yeah\nB: Yeah\nA: Anyway!\nB: Yes I need to run, it was nice to meet you\n",
+        "A: Have you heard of Comfy UI?\nB: Comfy? I know them very well, great people\nA: Yeah, have you ever tried the software?\nB: I do, almost everyday, it's my morning routine now\nA: Me too\nB: Wild\nA: Yeah\nB: I'm a big Flux fan\nA: I'm not suprised\nB: It was nice talking to you\nA: Likewise!\n",
         1,
-        -0.4,
-        1573,
+        -0.2,
+        1916,
         "randomize"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "SaveAudio",
+      "pos": {
+        "0": 1046,
+        "1": 25
+      },
+      "size": [
+        382.90370362918793,
+        135.0872482542262
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 22
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveAudio"
+      },
+      "widgets_values": [
+        "audio/ComfyUI",
+        null
       ]
     },
     {
       "id": 22,
       "type": "CosyVoiceLoadModel",
-      "pos": [
-        166,
-        98
-      ],
+      "pos": {
+        "0": 198,
+        "1": 32
+      },
       "size": {
         "0": 315,
-        "1": 58
+        "1": 82
       },
       "flags": {},
       "order": 0,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "model",
@@ -121,23 +123,25 @@
         "Node name for S&R": "CosyVoiceLoadModel"
       },
       "widgets_values": [
-        "CosyVoice-300M"
+        "base",
+        true
       ]
     },
     {
       "id": 23,
       "type": "LoadAudio",
-      "pos": [
-        166,
-        213
-      ],
+      "pos": {
+        "0": 199,
+        "1": 168
+      },
       "size": {
         "0": 315,
-        "1": 100
+        "1": 124
       },
       "flags": {},
       "order": 1,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "AUDIO",
@@ -145,32 +149,34 @@
           "links": [
             23
           ],
-          "shape": 3,
-          "slot_index": 0
+          "slot_index": 0,
+          "shape": 3
         }
       ],
       "properties": {
         "Node name for S&R": "LoadAudio"
       },
       "widgets_values": [
-        "niko_sample_01.wav",
-        null
+        "rogan_sample_01.wav",
+        null,
+        ""
       ]
     },
     {
       "id": 24,
       "type": "LoadAudio",
-      "pos": [
-        170,
-        364
-      ],
+      "pos": {
+        "0": 201,
+        "1": 352
+      },
       "size": {
         "0": 315,
-        "1": 100.00001525878906
+        "1": 124
       },
       "flags": {},
       "order": 2,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "AUDIO",
@@ -178,16 +184,17 @@
           "links": [
             24
           ],
-          "shape": 3,
-          "slot_index": 0
+          "slot_index": 0,
+          "shape": 3
         }
       ],
       "properties": {
         "Node name for S&R": "LoadAudio"
       },
       "widgets_values": [
-        "zero_shot_prompt.wav",
-        null
+        "trump_sample_01.wav",
+        null,
+        ""
       ]
     }
   ],
@@ -229,10 +236,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.9090909090909091,
+      "scale": 0.8264462809917354,
       "offset": [
-        -102.28539863609961,
-        29.02222779213976
+        69.03629637081225,
+        182.1427456422582
       ]
     }
   },

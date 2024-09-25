@@ -3,74 +3,12 @@
   "last_link_id": 17,
   "nodes": [
     {
-      "id": 13,
-      "type": "LoadAudio",
-      "pos": [
-        98,
-        253
-      ],
-      "size": [
-        326.68108544921853,
-        100
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "AUDIO",
-          "type": "AUDIO",
-          "links": [
-            15
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadAudio"
-      },
-      "widgets_values": [
-        "cross_lingual_prompt.wav",
-        null
-      ]
-    },
-    {
-      "id": 14,
-      "type": "SaveAudio",
-      "pos": [
-        962,
-        166
-      ],
-      "size": {
-        "0": 315,
-        "1": 100
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 17
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SaveAudio"
-      },
-      "widgets_values": [
-        "audio/ComfyUI",
-        null
-      ]
-    },
-    {
       "id": 16,
       "type": "CosyVoiceCrossLanguageReproduction",
-      "pos": [
-        517,
-        168
-      ],
+      "pos": {
+        "0": 510,
+        "1": 96
+      },
       "size": {
         "0": 400,
         "1": 200
@@ -98,8 +36,8 @@
           "links": [
             17
           ],
-          "shape": 3,
-          "slot_index": 0
+          "slot_index": 0,
+          "shape": 3
         }
       ],
       "properties": {
@@ -108,24 +46,25 @@
       "widgets_values": [
         "<|en|>And then later on, fully acquiring that company. So keeping management in line, interest in line with the asset that\\'s coming into the family is a reason why sometimes we don\\'t buy the whole thing.",
         1,
-        1496,
+        759,
         "randomize"
       ]
     },
     {
       "id": 17,
       "type": "CosyVoiceLoadModel",
-      "pos": [
-        84,
-        100
-      ],
+      "pos": {
+        "0": 84,
+        "1": 100
+      },
       "size": {
         "0": 315,
-        "1": 58
+        "1": 82
       },
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "model",
@@ -140,7 +79,73 @@
         "Node name for S&R": "CosyVoiceLoadModel"
       },
       "widgets_values": [
-        "CosyVoice-300M"
+        "base",
+        true
+      ]
+    },
+    {
+      "id": 13,
+      "type": "LoadAudio",
+      "pos": {
+        "0": 98,
+        "1": 253
+      },
+      "size": {
+        "0": 326.68109130859375,
+        "1": 124
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            15
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "cross_lingual_prompt.wav",
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 14,
+      "type": "SaveAudio",
+      "pos": {
+        "0": 966,
+        "1": 90
+      },
+      "size": {
+        "0": 315,
+        "1": 100
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 17
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveAudio"
+      },
+      "widgets_values": [
+        "audio/ComfyUI",
+        null
       ]
     }
   ],
@@ -174,10 +179,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.9090909090909091,
+      "scale": 1,
       "offset": [
-        180.2452443028478,
-        82.36729523784548
+        -19.90370362918793,
+        263.31274564225816
       ]
     }
   },
