@@ -32,4 +32,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CosyVoiceCrossLanguageReproduction": "CosyVoiceCrossLanguageReproduction (Base)",
     "CosyVoiceDubbingNode": "CosyVoiceDubbingNode (Base)",
     "CosyVoicePretrainedTones": "CosyVoicePretrainedTones (SFT)",
+    "CosyVoiceDialog": "CosyVoiceDialog (Base)",
 }

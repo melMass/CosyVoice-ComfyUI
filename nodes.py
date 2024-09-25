@@ -1,9 +1,11 @@
-from typing import Literal
+from collections.abc import Iterator
+from typing import Literal, TypedDict
 import torch
 import random
 import librosa
 import torchaudio
 import numpy as np
+import numpy.typing as npt
 import os
 import sys
 import comfy.utils
@@ -27,6 +29,15 @@ pretrained_models = now_dir / "pretrained_models"
 max_val = 0.8
 prompt_sr, target_sr = 16000, 22050
 ModelKind = Literal["base", "sft", "instruct"]
+
+class AudioTensor(TypedDict):
+    sample_rate: int
+    waveform: torch.Tensor
+
+
+class CosyTTS(TypedDict):
+    tts_speech: torch.Tensor
+
 
 # This doesn't work since
 # https://github.com/modelscope/modelscope/blob/51b33cecefed4daad3dccc47e0da60d5923ce8de/modelscope/hub/snapshot_download.py#L51
@@ -113,7 +124,7 @@ def postprocess(speech: torch.Tensor, top_db=60, hop_length=220, win_length=440)
     return speech
 
 
-def speed_change(input_audio, speed, sr):
+def speed_change(input_audio: npt.NDArray[np.float32], speed: float, sr: int):
     # Check input data type and number of channels
     if input_audio.dtype != np.int16:
         raise ValueError("The input audio data type must be np.int16")
@@ -170,7 +181,7 @@ class CosyVoiceLoadModel:
         return {
             "required": {
                 "model": (
-                    ("base", "instruct", "SFT"),
+                    ("base", "instruct", "sft"),
                     {"default": "base"},
                 ),
             },
@@ -206,7 +217,9 @@ def ms(samples, sample_rate):
 
 class CosyBase:
     @classmethod
-    def cut_audio(cls, audio, max_length_ms=25000, *, report=False):
+    def cut_audio(
+        cls, audio: AudioTensor, max_length_ms=25000, *, report=False
+    ) -> AudioTensor:
         sample_rate = audio["sample_rate"]
         input_duration = ms(len(audio["waveform"][0][0]), sample_rate)
         if report:
@@ -228,23 +241,27 @@ class CosyBase:
         }
 
     @classmethod
-    def to_comfy(cls, inference_output, speed):
+    def to_comfy(cls, inference_output: Iterator[CosyTTS], speed: float):
         tensors = []
+
         for inf in inference_output:
-            output_numpy = inf["tts_speech"].squeeze(0).numpy() * 32768
-            output_numpy = output_numpy.astype(np.int16)
+            output_tensor = inf["tts_speech"].squeeze(0)
+
             if speed != 1.0:
+                output_numpy = (output_tensor * 32768).short().cpu().numpy()
                 output_numpy = speed_change(output_numpy, speed, target_sr)
+                output_tensor = torch.from_numpy(output_numpy).float() / 32768
 
-            tensors.append(torch.Tensor(output_numpy / 32768).unsqueeze(0))
+            tensors.append(output_tensor)
 
+        output = torch.cat(tensors, dim=-1).unsqueeze(0).unsqueeze(0)
         return {
-            "waveform": torch.stack(tensors, dim=0),
+            "waveform": output,
             "sample_rate": target_sr,
         }
 
     @classmethod
-    def from_comfy(cls, audio) -> torch.Tensor:
+    def from_comfy(cls, audio: AudioTensor) -> torch.Tensor:
         waveform = audio["waveform"].squeeze(0)
         source_sr = audio["sample_rate"]
         speech = waveform.mean(dim=0, keepdim=True)
@@ -321,9 +338,7 @@ class CosyVoiceNaturalLanguageControl(CosyBase):
         sft_cn = sfts[sft]
         set_all_random_seed(seed)
         output = model.inference_instruct(tts_text, sft_cn, instruct_text)
-
         audio = self.to_comfy(output, speed)
-
         return (audio,)
 
 
@@ -352,7 +367,7 @@ class CosyVoiceCrossLanguageReproduction(CosyBase):
     def process(
         self,
         model: CosyVoice,
-        prompt_wav: dict,
+        prompt_wav: AudioTensor,
         tts_text: str,
         speed: float,
         seed: int,
@@ -393,7 +408,7 @@ class CosyVoice3SExtremeReproduction(CosyBase):
         self,
         model: CosyVoice,
         prompt_text: str,
-        prompt_wav: dict,
+        prompt_wav: AudioTensor,
         tts_text: str,
         speed: float,
         seed: int,
@@ -440,6 +455,7 @@ class CosyVoiceDialogue(CosyBase):
 
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("generated_audio",)
+    EXPERIMENTAL = True
 
     FUNCTION = "generate"
 
@@ -462,7 +478,9 @@ class CosyVoiceDialogue(CosyBase):
                 result.append((speaker, voice_tensor, dialog))
         return result
 
-    def sequence_audio(self, audios, silence_duration):
+    def sequence_audio(
+        self, audios: list[AudioTensor], silence_duration: float
+    ) -> AudioTensor:
         sample_rate = audios[0]["sample_rate"]
 
         for audio in audios:
@@ -471,36 +489,45 @@ class CosyVoiceDialogue(CosyBase):
 
         sequence = []
         for i, audio in enumerate(audios):
-            if i > 0 and silence_duration != 0:
-                if silence_duration > 0:
-                    silence = torch.zeros((1, 1, int(silence_duration * sample_rate)))
-                    sequence.append(silence)
-                else:
-                    overlap = int(abs(silence_duration) * sample_rate)
-                    previous_audio = sequence[-1]
+            for waveform in audio["waveform"]:
+                if i > 0 and silence_duration != 0:
+                    if silence_duration > 0:
+                        silence = torch.zeros((1, int(silence_duration * sample_rate)))
+                        sequence.append(silence)
+                    else:
+                        overlap = int(abs(silence_duration) * sample_rate)
+                        previous_audio = sequence[-1]
 
-                    if (
-                        previous_audio.shape[-1] < overlap
-                        or audio["waveform"].shape[-1] < overlap
-                    ):
-                        actual_overlap = min(
-                            previous_audio.shape[-1], audio["waveform"].shape[-1]
+                        if (
+                            previous_audio.shape[-1] < overlap
+                            or waveform.shape[-1] < overlap
+                        ):
+                            actual_overlap = min(
+                                previous_audio.shape[-1], waveform.shape[-1]
+                            )
+                            print(
+                                f"Warning: Overlap duration exceeds audio segment length. Using actual overlap: {actual_overlap/sample_rate:.2f}s instead of {overlap/sample_rate:.2f}s."
+                            )
+                            overlap = actual_overlap
+
+                        overlap_part = (
+                            previous_audio[:, -overlap:] + waveform[:, :overlap]
                         )
-                        print(
-                            f"Warning: Overlap duration exceeds audio segment length. Using actual overlap: {actual_overlap/sample_rate:.2f}s instead of {overlap/sample_rate:.2f}s."
-                        )
-                        overlap = actual_overlap
+                        if overlap_part.numel() == 0:
+                            raise ValueError("Overlap part is empty or invalid.")
 
-                    overlap_part = (
-                        previous_audio[:, :, -overlap:]
-                        + audio["waveform"][:, :, :overlap]
-                    )
-                    sequence[-1] = previous_audio[:, :, :-overlap]
-                    sequence.append(overlap_part)
-                    audio["waveform"] = audio["waveform"][:, :, overlap:]
+                        sequence[-1] = previous_audio[:, :-overlap]
 
-            sequence.append(audio["waveform"])
-        sequenced_waveform = torch.cat(sequence, dim=-1)
+                        waveform = waveform[:, overlap:]
+                        sequence.append(overlap_part)
+
+                if waveform.ndim == 1:
+                    waveform = waveform.unsqueeze(0)
+
+                sequence.append(waveform)
+
+        sequenced_waveform = torch.cat(sequence, dim=-1).unsqueeze(0)
+
         return {"sample_rate": sample_rate, "waveform": sequenced_waveform}
 
     def generate(
@@ -510,11 +537,10 @@ class CosyVoiceDialogue(CosyBase):
         speed: float,
         silence: float,
         seed: int,
-        **kwargs: dict[str, torch.Tensor],
-    ):
+        **kwargs: AudioTensor,
+    ) -> tuple[AudioTensor]:
         voices = [self.cut_audio(voice_tensor) for voice_tensor in kwargs.values()]
         voice_map = self.map(voices)
-
         text_map = self.zip_dialog(tts_text, voice_map)
 
         outputs = []
@@ -525,6 +551,7 @@ class CosyVoiceDialogue(CosyBase):
 
             speech = self.from_comfy(voice_tensor)
             prompt_speech_16k = postprocess(speech)
+
             set_all_random_seed(seed)
             infered = model.inference_cross_lingual(text, prompt_speech_16k)
             audio = self.to_comfy(infered, speed)
@@ -586,15 +613,17 @@ class CosyVoiceNode(CosyBase):
         if inference_mode == "Natural Language Control":
             model_dir = pretrained_models / "CosyVoice-300M-Instruct"
             snapshot_download(
-                model_id="iic/CosyVoice-300M-Instruct", local_dir=model_dir
+                model_id="iic/CosyVoice-300M-Instruct", local_dir=model_dir.as_posix()
             )
             if instruct_text is None:
                 raise ValueError(
                     "in natural language control mode, instruct_text can't be none"
                 )
         if inference_mode in ["Cross-language reproduction", "3s Extreme Reproduction"]:
-            model_dir = os.path.join(pretrained_models, "CosyVoice-300M")
-            snapshot_download(model_id="iic/CosyVoice-300M", local_dir=model_dir)
+            model_dir = pretrained_models / "CosyVoice-300M"
+            snapshot_download(
+                model_id="iic/CosyVoice-300M", local_dir=model_dir.as_posix()
+            )
 
             if prompt_wav is None:
                 raise ValueError(
