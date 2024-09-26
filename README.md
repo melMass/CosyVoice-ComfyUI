@@ -25,6 +25,7 @@ pip install -r requirements.txt
 - [CosyVoice-300M](https://huggingface.co/model-scope/CosyVoice-300M)
 - [CosyVoice-300M-Instruct](https://huggingface.co/model-scope/CosyVoice-300M-Instruct)
 - [CosyVoice-300M-SFT](https://huggingface.co/model-scope/CosyVoice-300M-SFT)
+- [CosyVoice-300M-25Hz](https://huggingface.co/model-scope/CosyVoice-300M-25Hz)
 
 ## Preview
 <video width=200 height=200 src="https://github.com/user-attachments/assets/25630131-2f4a-45bc-80e8-9b5acaf2f1c9"/>
