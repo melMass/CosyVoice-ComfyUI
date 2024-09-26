@@ -342,7 +342,7 @@ class HiFTGenerator(nn.Module):
         self.resblocks = nn.ModuleList()
         for i in range(len(self.ups)):
             ch = base_channels // (2 ** (i + 1))
-            for j, (k, d) in enumerate(
+            for _, (k, d) in enumerate(
                 zip(resblock_kernel_sizes, resblock_dilation_sizes)
             ):
                 self.resblocks.append(ResBlock(ch, k, d))
@@ -396,7 +396,7 @@ class HiFTGenerator(nn.Module):
         s = self._f02source(f0)
 
         # use cache_source to avoid glitch
-        if cache_source.shape[2] == 0:
+        if cache_source.shape[2] != 0:
             s[:, :, : cache_source.shape[2]] = cache_source
 
         s_stft_real, s_stft_imag = self._stft(s.squeeze(1))

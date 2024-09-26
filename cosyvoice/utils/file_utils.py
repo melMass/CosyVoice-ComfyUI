@@ -49,14 +49,3 @@ def load_wav(wav, target_sr):
             orig_freq=sample_rate, new_freq=target_sr
         )(speech)
     return speech
-
-
-def speed_change(waveform, sample_rate, speed_factor: str):
-    effects = [
-        ["tempo", speed_factor],  # speed_factor
-        ["rate", f"{sample_rate}"],
-    ]
-    augmented_waveform, new_sample_rate = torchaudio.sox_effects.apply_effects_tensor(
-        waveform, sample_rate, effects
-    )
-    return augmented_waveform, new_sample_rate

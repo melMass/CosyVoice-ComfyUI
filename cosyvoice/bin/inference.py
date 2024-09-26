@@ -17,17 +17,16 @@ from __future__ import print_function
 import argparse
 import logging
 
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
 import os
-
 import torch
 from torch.utils.data import DataLoader
 import torchaudio
 from hyperpyyaml import load_hyperpyyaml
 from tqdm import tqdm
 from cosyvoice.cli.model import CosyVoiceModel
-
 from cosyvoice.dataset.dataset import Dataset
+
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 def get_args():
@@ -83,13 +82,11 @@ def main():
     fn = os.path.join(args.result_dir, "wav.scp")
     f = open(fn, "w")
     with torch.no_grad():
-        for batch_idx, batch in tqdm(enumerate(test_data_loader)):
+        for _, batch in tqdm(enumerate(test_data_loader)):
             utts = batch["utts"]
             assert len(utts) == 1, "inference mode only support batchsize 1"
-            text = batch["text"]
             text_token = batch["text_token"].to(device)
             text_token_len = batch["text_token_len"].to(device)
-            tts_text = batch["tts_text"]
             tts_index = batch["tts_index"]
             tts_text_token = batch["tts_text_token"].to(device)
             tts_text_token_len = batch["tts_text_token_len"].to(device)
