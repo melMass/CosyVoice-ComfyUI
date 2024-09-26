@@ -19,6 +19,7 @@ from pathlib import Path
 
 now_dir = Path(__file__).parent.resolve()
 sys.path.append(now_dir.as_posix())
+sys.path.append((now_dir / "vendored").as_posix())
 
 from cosyvoice.cli.cosyvoice import CosyVoice
 
@@ -28,7 +29,10 @@ pretrained_models = now_dir / "pretrained_models"
 
 max_val = 0.8
 prompt_sr, target_sr = 16000, 22050
-ModelKind = Literal["base", "sft", "instruct"]
+
+
+ModelKind = Literal["base", "sft", "instruct", "25hz"]
+
 
 class AudioTensor(TypedDict):
     sample_rate: int
@@ -50,6 +54,7 @@ MODEL_MAP = {
     "base": model_prefix,
     "sft": f"{model_prefix}-SFT",
     "instruct": f"{model_prefix}-Instruct",
+    "25hz": f"{model_prefix}-25Hz",
 }
 
 
@@ -181,7 +186,7 @@ class CosyVoiceLoadModel:
         return {
             "required": {
                 "model": (
-                    ("base", "instruct", "sft"),
+                    ("base", "instruct", "sft", "25hz"),
                     {"default": "base"},
                 ),
             },
@@ -241,7 +246,7 @@ class CosyBase:
         }
 
     @classmethod
-    def to_comfy(cls, inference_output: Iterator[CosyTTS], speed: float):
+    def to_comfy(cls, inference_output: Iterator[CosyTTS], speed: float = 1.0):
         tensors = []
 
         for inf in inference_output:
@@ -273,6 +278,42 @@ class CosyBase:
         return speech
 
 
+class CosyVoiceVc(CosyBase):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("COSYVOICE_MODEL",),
+                "source_speech": ("AUDIO",),
+                "prompt_speech": ("AUDIO",),
+                "speed": ("FLOAT", {"default": 1.0}),
+                "seed": ("INT", {"default": 42}),
+            }
+        }
+
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("generated_audio",)
+
+    FUNCTION = "process"
+
+    CATEGORY = "CosyVoice"
+
+    def process(
+        self,
+        model: CosyVoice,
+        source_speech: AudioTensor,
+        prompt_speech: AudioTensor,
+        speed: float,
+        seed: int,
+    ):
+        set_all_random_seed(seed)
+        source = self.from_comfy(source_speech)
+        prompt = self.from_comfy(prompt_speech)
+        output = model.inference_vc(source, prompt, speed=speed)
+
+        return (self.to_comfy(output),)
+
+
 class CosyVoicePretrainedTones(CosyBase):
     @classmethod
     def INPUT_TYPES(cls):
@@ -298,9 +339,9 @@ class CosyVoicePretrainedTones(CosyBase):
     ):
         sft_cn = sfts[sft]
         set_all_random_seed(seed)
-        output = model.inference_sft(tts_text, sft_cn)
+        output = model.inference_sft(tts_text, sft_cn, speed=speed)
 
-        return (self.to_comfy(output, speed),)
+        return (self.to_comfy(output),)
 
 
 class CosyVoiceNaturalLanguageControl(CosyBase):
@@ -337,8 +378,8 @@ class CosyVoiceNaturalLanguageControl(CosyBase):
     ):
         sft_cn = sfts[sft]
         set_all_random_seed(seed)
-        output = model.inference_instruct(tts_text, sft_cn, instruct_text)
-        audio = self.to_comfy(output, speed)
+        output = model.inference_instruct(tts_text, sft_cn, instruct_text, speed=speed)
+        audio = self.to_comfy(output)
         return (audio,)
 
 
@@ -375,8 +416,8 @@ class CosyVoiceCrossLanguageReproduction(CosyBase):
         speech = self.from_comfy(prompt_wav)
         prompt_speech_16k = postprocess(speech)
         set_all_random_seed(seed)
-        output = model.inference_cross_lingual(tts_text, prompt_speech_16k)
-        audio = self.to_comfy(output, speed)
+        output = model.inference_cross_lingual(tts_text, prompt_speech_16k, speed=speed)
+        audio = self.to_comfy(output)
 
         return (audio,)
 
@@ -419,9 +460,11 @@ class CosyVoice3SExtremeReproduction(CosyBase):
         prompt_speech_16k = postprocess(speech)
 
         set_all_random_seed(seed)
-        output = model.inference_zero_shot(tts_text, prompt_text, prompt_speech_16k)
+        output = model.inference_zero_shot(
+            tts_text, prompt_text, prompt_speech_16k, speed=speed
+        )
 
-        audio = self.to_comfy(output, speed)
+        audio = self.to_comfy(output)
 
         return (audio,)
 
@@ -553,8 +596,10 @@ class CosyVoiceDialogue(CosyBase):
             prompt_speech_16k = postprocess(speech)
 
             set_all_random_seed(seed)
-            infered = model.inference_cross_lingual(text, prompt_speech_16k)
-            audio = self.to_comfy(infered, speed)
+            infered = model.inference_cross_lingual(
+                text, prompt_speech_16k, speed=speed
+            )
+            audio = self.to_comfy(infered)
             outputs.append(audio)
             pbar.update(1)
 
@@ -714,7 +759,14 @@ class CosyVoiceDubbingNode:
     CATEGORY = "CosyVoice"
 
     def generate(
-        self, model, tts_srt, prompt_wav, language, if_single, seed, prompt_srt=None
+        self,
+        model: CosyVoice,
+        tts_srt: str,
+        prompt_wav: AudioTensor,
+        language: str,
+        if_single: bool,
+        seed: int,
+        prompt_srt: str | None = None,
     ):
         language = f"<|{language}|>"
 

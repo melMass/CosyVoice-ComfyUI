@@ -16,16 +16,15 @@ from __future__ import print_function
 import argparse
 import datetime
 import logging
-
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
 from copy import deepcopy
 import torch
 import torch.distributed as dist
 import deepspeed
-
 from hyperpyyaml import load_hyperpyyaml
-
 from torch.distributed.elastic.multiprocessing.errors import record
+
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
 
 from cosyvoice.utils.executor import Executor
 from cosyvoice.utils.train_utils import (
@@ -123,9 +122,7 @@ def main():
     # load checkpoint
     model = configs[args.model]
     if args.checkpoint is not None:
-        model.load_state_dict(
-            torch.load(args.checkpoint, weights_only=True, map_location="cpu")
-        )
+        model.load_state_dict(torch.load(args.checkpoint, map_location="cpu"))
 
     # Dispatch model from cpu to gpu
     model = wrap_cuda_model(args, model)

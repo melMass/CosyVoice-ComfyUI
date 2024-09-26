@@ -4,6 +4,7 @@ from .nodes import (
     LoadSRT,
     CosyVoiceDubbingNode,
     CosyVoiceDialogue,
+    CosyVoiceVc,
     CosyVoiceLoadModel,
     CosyVoiceNaturalLanguageControl,
     CosyVoice3SExtremeReproduction,
@@ -19,6 +20,7 @@ NODE_CLASS_MAPPINGS = {
     "CosyVoiceNode": CosyVoiceNode,
     "CosyVoiceDubbingNode": CosyVoiceDubbingNode,
     "CosyVoiceDialog": CosyVoiceDialogue,
+    "CosyVoiceVc": CosyVoiceVc,
     "CosyVoiceLoadModel": CosyVoiceLoadModel,
     "CosyVoiceNaturalLanguageControl": CosyVoiceNaturalLanguageControl,
     "CosyVoice3SExtremeReproduction": CosyVoice3SExtremeReproduction,
@@ -33,4 +35,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CosyVoiceDubbingNode": "CosyVoiceDubbingNode (Base)",
     "CosyVoicePretrainedTones": "CosyVoicePretrainedTones (SFT)",
     "CosyVoiceDialog": "CosyVoiceDialog (Base)",
+    "CosyVoiceVc": "CosyVoiceVC (25Hz)",
 }
