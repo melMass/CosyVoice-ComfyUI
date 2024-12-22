@@ -21,7 +21,7 @@ now_dir = Path(__file__).parent.resolve()
 sys.path.append(now_dir.as_posix())
 sys.path.append((now_dir / "vendored").as_posix())
 
-from cosyvoice.cli.cosyvoice import CosyVoice
+from cosyvoice.cli.cosyvoice import CosyVoice, CosyVoice2
 
 input_dir = Path(folder_paths.get_input_directory())
 output_dir = Path(folder_paths.get_output_directory()) / "cosyvoice_dubb"
@@ -31,7 +31,7 @@ max_val = 0.8
 prompt_sr, target_sr = 16000, 22050
 
 
-ModelKind = Literal["base", "sft", "instruct", "25hz"]
+ModelKind = Literal["base", "sft", "instruct", "25hz", "2-0.5b"]
 
 
 class AudioTensor(TypedDict):
@@ -55,6 +55,7 @@ MODEL_MAP = {
     "sft": f"{model_prefix}-SFT",
     "instruct": f"{model_prefix}-Instruct",
     "25hz": f"{model_prefix}-25Hz",
+    "2-0.5b": "CosyVoice2-0.5B",
 }
 
 
@@ -186,11 +187,19 @@ class CosyVoiceLoadModel:
         return {
             "required": {
                 "model": (
-                    ("base", "instruct", "sft", "25hz"),
+                    ("base", "instruct", "sft", "25hz", "2-0.5b"),
                     {"default": "base"},
                 ),
             },
-            "optional": {"auto_download": ("BOOLEAN", {"default": True})},
+            "optional": {
+                "auto_download": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "CosyVoice 1 and 2 are updated from time to time, if you get an error try enabling autodownload, it should be smart enough to only 'update' what is needed",
+                    },
+                )
+            },
         }
 
     RETURN_TYPES = ("COSYVOICE_MODEL",)
@@ -213,7 +222,10 @@ class CosyVoiceLoadModel:
             To download the files manually check "https://www.modelscope.cn/models/iic/{name}"
 
             """)
-        return (CosyVoice(model_dir),)
+        if model.startswith("2-"):
+            return (CosyVoice2(model_dir),)
+        else:
+            return (CosyVoice(model_dir),)
 
 
 def ms(samples, sample_rate):
