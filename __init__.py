@@ -29,7 +29,7 @@ NODE_CLASS_MAPPINGS = {
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CosyVoiceNode": "CosyVoiceNode [DEPRECATED]",
-    "CosyVoiceNaturalLanguageControl": "CosyVoiceNaturalLanguageControl (Instruct)",
+    "CosyVoiceNaturalLanguageControl": "CosyVoiceNaturalLanguageControl (Instruct & 2.0 5b)",
     "CosyVoice3SExtremeReproduction": "CosyVoice3SExtremeReproduction (Base)",
     "CosyVoiceCrossLanguageReproduction": "CosyVoiceCrossLanguageReproduction (Base)",
     "CosyVoiceDubbingNode": "CosyVoiceDubbingNode (Base)",

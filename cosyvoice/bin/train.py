@@ -100,7 +100,7 @@ def main():
         level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s"
     )
 
-    override_dict = {k: None for k in ["llm", "flow", "hift"] if k != args.model}
+    override_dict = {k: None for k in ["llm", "flow", "hifigan"] if k != args.model}
     with open(args.config, "r") as f:
         configs = load_hyperpyyaml(f, overrides=override_dict)
     configs["train_conf"].update(vars(args))

@@ -223,9 +223,11 @@ class CosyVoiceLoadModel:
 
             """)
         if model.startswith("2-"):
-            return (CosyVoice2(model_dir),)
+            return (
+                CosyVoice2(model_dir, load_jit=True, load_onnx=False, load_trt=False),
+            )
         else:
-            return (CosyVoice(model_dir),)
+            return (CosyVoice(model_dir, load_jit=True, load_onnx=False),)
 
 
 def ms(samples, sample_rate):
@@ -367,6 +369,7 @@ class CosyVoiceNaturalLanguageControl(CosyBase):
                 "sft": (sft_spk_list, {"default": "English Woman"}),
                 "speed": ("FLOAT", {"default": 1.0}),
                 "seed": ("INT", {"default": 42}),
+                "prompt_wav": ("AUDIO",),
             }
         }
 
@@ -381,16 +384,27 @@ class CosyVoiceNaturalLanguageControl(CosyBase):
 
     def process(
         self,
-        model: CosyVoice,
+        model: CosyVoice | CosyVoice2,
         instruct_text: str,
         tts_text: str,
         sft: str,
         speed: float,
         seed: int,
+        prompt_wav,
     ):
         sft_cn = sfts[sft]
+        speech = self.from_comfy(prompt_wav)
+        prompt_speech_16k = postprocess(speech)
+
         set_all_random_seed(seed)
-        output = model.inference_instruct(tts_text, sft_cn, instruct_text, speed=speed)
+        if isinstance(model, CosyVoice2):
+            output = model.inference_instruct2(
+                tts_text, instruct_text, prompt_speech_16k, speed=speed
+            )
+        else:
+            output = model.inference_instruct(
+                tts_text, sft_cn, instruct_text, speed=speed
+            )
         audio = self.to_comfy(output)
         return (audio,)
 
