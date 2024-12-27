@@ -533,15 +533,15 @@ class CosyVoiceFrontEnd:
         }
         return model_input
 
-    def frontend_vc(self, source_speech_16k, prompt_speech_16k):
+    def frontend_vc(self, source_speech_16k, prompt_speech_16k, resample_rate):
         prompt_speech_token, prompt_speech_token_len = self._extract_speech_token(
             prompt_speech_16k
         )
-        prompt_speech_22050 = torchaudio.transforms.Resample(
-            orig_freq=16000, new_freq=22050
+        prompt_speech_resample = torchaudio.transforms.Resample(
+            orig_freq=16000, new_freq=resample_rate
         )(prompt_speech_16k)
         prompt_speech_feat, prompt_speech_feat_len = self._extract_speech_feat(
-            prompt_speech_22050
+            prompt_speech_resample
         )
         embedding = self._extract_spk_embedding(prompt_speech_16k)
         source_speech_token, source_speech_token_len = self._extract_speech_token(
