@@ -16,12 +16,11 @@ from __future__ import print_function
 
 import argparse
 import logging
+
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 import os
 import sys
 import torch
-
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
-
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append("{}/../..".format(ROOT_DIR))

@@ -1,8 +1,7 @@
-from typing import List
 import torch
 import torch.nn as nn
 from torch.nn.utils import weight_norm
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from einops import rearrange
 from torchaudio.transforms import Spectrogram
 
@@ -39,11 +38,13 @@ class MultiResolutionDiscriminator(nn.Module):
         """
         Multi-Resolution Discriminator module adapted from https://github.com/descriptinc/descript-audio-codec.
         Additionally, it allows incorporating conditional information with a learned embeddings table.
+
         Args:
             fft_sizes (tuple[int]): Tuple of window lengths for FFT. Defaults to (2048, 1024, 512).
             num_embeddings (int, optional): Number of embeddings. None means non-conditional discriminator.
                 Defaults to None.
         """
+
         super().__init__()
         self.discriminators = nn.ModuleList(
             [
@@ -64,6 +65,7 @@ class MultiResolutionDiscriminator(nn.Module):
         y_d_gs = []
         fmap_rs = []
         fmap_gs = []
+
         for d in self.discriminators:
             y_d_r, fmap_r = d(x=y, cond_embedding_id=bandwidth_id)
             y_d_g, fmap_g = d(x=y_hat, cond_embedding_id=bandwidth_id)
@@ -71,6 +73,7 @@ class MultiResolutionDiscriminator(nn.Module):
             fmap_rs.append(fmap_r)
             y_d_gs.append(y_d_g)
             fmap_gs.append(fmap_g)
+
         return y_d_rs, y_d_gs, fmap_rs, fmap_gs
 
 
@@ -119,11 +122,13 @@ class DiscriminatorR(nn.Module):
             ]
         )
         self.band_convs = nn.ModuleList([convs() for _ in range(len(self.bands))])
+
         if num_embeddings is not None:
             self.emb = torch.nn.Embedding(
                 num_embeddings=num_embeddings, embedding_dim=channels
             )
             torch.nn.init.zeros_(self.emb.weight)
+
         self.conv_post = weight_norm(
             nn.Conv2d(channels, 1, (3, 3), (1, 1), padding=(1, 1))
         )
@@ -160,4 +165,5 @@ class DiscriminatorR(nn.Module):
         x = self.conv_post(x)
         fmap.append(x)
         x += h
+
         return x, fmap

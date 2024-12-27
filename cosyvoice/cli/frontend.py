@@ -281,7 +281,13 @@ class CosyVoiceFrontEnd:
         return speech_feat, speech_feat_len
 
     def text_normalize(
-        self, text, split=True, token_max_n=30, token_min_n=20, merge_len=15
+        self,
+        text,
+        split=True,
+        token_max_n=30,
+        token_min_n=20,
+        merge_len=15,
+        text_frontent=True,
     ):
         text = text.strip()
         if contains_chinese(text):
@@ -435,14 +441,24 @@ class CosyVoiceFrontEnd:
         }
         return model_input
 
-    def frontend_zero_shot(self, tts_text, prompt_text, prompt_speech_16k):
+    def frontend_zero_shot(
+        self, tts_text, prompt_text, prompt_speech_16k, resample_rate
+    ):
         tts_text_token, tts_text_token_len = self._extract_text_token(tts_text)
         prompt_text_token, prompt_text_token_len = self._extract_text_token(prompt_text)
-        prompt_speech_22050 = torchaudio.transforms.Resample(
-            orig_freq=16000, new_freq=22050
+        prompt_speech_resample = torchaudio.transforms.Resample(
+            orig_freq=16000, new_freq=resample_rate
         )(prompt_speech_16k)
-        speech_feat, speech_feat_len = self._extract_speech_feat(prompt_speech_22050)
+        speech_feat, speech_feat_len = self._extract_speech_feat(prompt_speech_resample)
         speech_token, speech_token_len = self._extract_speech_token(prompt_speech_16k)
+        if resample_rate == 24000:
+            # cosyvoice2, force speech_feat % speech_token = 2
+            token_len = min(int(speech_feat.shape[1] / 2), speech_token.shape[1])
+            speech_feat, speech_feat_len[:] = (
+                speech_feat[:, : 2 * token_len],
+                2 * token_len,
+            )
+            speech_token, speech_token_len[:] = speech_token[:, :token_len], token_len
         embedding = self._extract_spk_embedding(prompt_speech_16k)
         model_input = {
             "text": tts_text_token,
@@ -460,8 +476,10 @@ class CosyVoiceFrontEnd:
         }
         return model_input
 
-    def frontend_cross_lingual(self, tts_text, prompt_speech_16k):
-        model_input = self.frontend_zero_shot(tts_text, "", prompt_speech_16k)
+    def frontend_cross_lingual(self, tts_text, prompt_speech_16k, resample_rate):
+        model_input = self.frontend_zero_shot(
+            tts_text, "", prompt_speech_16k, resample_rate
+        )
         # in cross lingual mode, we remove prompt in llm
         del model_input["prompt_text"]
         del model_input["prompt_text_len"]

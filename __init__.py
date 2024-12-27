@@ -4,6 +4,7 @@ from .nodes import (
     LoadSRT,
     CosyVoiceDubbingNode,
     CosyVoiceDialogue,
+    CosyVoiceDialogueV2,
     CosyVoiceVc,
     CosyVoiceLoadModel,
     CosyVoiceNaturalLanguageControl,
@@ -20,6 +21,7 @@ NODE_CLASS_MAPPINGS = {
     "CosyVoiceNode": CosyVoiceNode,
     "CosyVoiceDubbingNode": CosyVoiceDubbingNode,
     "CosyVoiceDialog": CosyVoiceDialogue,
+    "CosyVoiceDialogV2": CosyVoiceDialogueV2,
     "CosyVoiceVc": CosyVoiceVc,
     "CosyVoiceLoadModel": CosyVoiceLoadModel,
     "CosyVoiceNaturalLanguageControl": CosyVoiceNaturalLanguageControl,
@@ -29,11 +31,12 @@ NODE_CLASS_MAPPINGS = {
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CosyVoiceNode": "CosyVoiceNode [DEPRECATED]",
-    "CosyVoiceNaturalLanguageControl": "CosyVoiceNaturalLanguageControl (Instruct & 2.0 5b)",
+    "CosyVoiceNaturalLanguageControl": "CosyVoice NaturalLanguageControl (Instruct & 2.0 5b)",
     "CosyVoice3SExtremeReproduction": "CosyVoice3SExtremeReproduction (Base)",
     "CosyVoiceCrossLanguageReproduction": "CosyVoiceCrossLanguageReproduction (Base)",
     "CosyVoiceDubbingNode": "CosyVoiceDubbingNode (Base)",
-    "CosyVoicePretrainedTones": "CosyVoicePretrainedTones (SFT)",
-    "CosyVoiceDialog": "CosyVoiceDialog (Base)",
-    "CosyVoiceVc": "CosyVoiceVC (25Hz)",
+    "CosyVoicePretrainedTones": "CosyVoice PretrainedTones (SFT)",
+    "CosyVoiceDialog": "CosyVoice Dialog (Base)",
+    "CosyVoiceDialogV2": "CosyVoice Dialog (V2)",
+    "CosyVoiceVc": "CosyVoice VC (25Hz)",
 }

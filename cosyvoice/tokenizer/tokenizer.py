@@ -245,6 +245,7 @@ def get_tokenizer(
 class QwenTokenizer:
     def __init__(self, token_path, skip_special_tokens=True):
         super().__init__()
+        # NOTE: non-chat model, all these special tokens keep randomly initialized.
         special_tokens = {
             "eos_token": "<|endoftext|>",
             "pad_token": "<|endoftext|>",
@@ -270,6 +271,7 @@ class QwenTokenizer:
                 "[mn]",
             ],
         }
+        self.special_tokens = special_tokens
         self.tokenizer = AutoTokenizer.from_pretrained(token_path)
         self.tokenizer.add_special_tokens(special_tokens)
         self.skip_special_tokens = skip_special_tokens

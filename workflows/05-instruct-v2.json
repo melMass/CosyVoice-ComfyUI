@@ -1,0 +1,196 @@
+{
+	"last_node_id": 22,
+	"last_link_id": 22,
+	"nodes": [
+		{
+			"id": 20,
+			"type": "TextNode",
+			"pos": [96, 552],
+			"size": [456, 180],
+			"flags": {},
+			"order": 0,
+			"mode": 0,
+			"inputs": [],
+			"outputs": [
+				{
+					"name": "STRING",
+					"type": "STRING",
+					"links": [20],
+					"slot_index": 0,
+					"shape": 3
+				}
+			],
+			"properties": {
+				"Node name for S&R": "TextNode"
+			},
+			"widgets_values": [""]
+		},
+		{
+			"id": 22,
+			"type": "LoadAudio",
+			"pos": [240, 780],
+			"size": [315, 124],
+			"flags": {},
+			"order": 1,
+			"mode": 0,
+			"inputs": [],
+			"outputs": [
+				{
+					"name": "AUDIO",
+					"type": "AUDIO",
+					"links": [22],
+					"slot_index": 0
+				}
+			],
+			"properties": {
+				"Node name for S&R": "LoadAudio"
+			},
+			"widgets_values": ["rogan_sample_01.wav", null, ""]
+		},
+		{
+			"id": 17,
+			"type": "CosyVoiceNaturalLanguageControl",
+			"pos": [648, 168],
+			"size": [428.3999938964844, 216],
+			"flags": {},
+			"order": 4,
+			"mode": 0,
+			"inputs": [
+				{
+					"name": "model",
+					"type": "COSYVOICE_MODEL",
+					"link": 16,
+					"slot_index": 0
+				},
+				{
+					"name": "tts_text",
+					"type": "STRING",
+					"link": 19,
+					"slot_index": 1,
+					"widget": {
+						"name": "tts_text"
+					}
+				},
+				{
+					"name": "instruct_text",
+					"type": "STRING",
+					"link": 20,
+					"slot_index": 2,
+					"widget": {
+						"name": "instruct_text"
+					}
+				},
+				{
+					"name": "prompt_wav",
+					"type": "AUDIO",
+					"link": 22
+				}
+			],
+			"outputs": [
+				{
+					"name": "generated_audio",
+					"type": "AUDIO",
+					"links": [17],
+					"slot_index": 0,
+					"shape": 3
+				}
+			],
+			"properties": {
+				"Node name for S&R": "CosyVoiceNaturalLanguageControl"
+			},
+			"widgets_values": [
+				"Theo \\'Crimson\\', is a fiery, passionate rebel leader. Fights with fervor for justice, but struggles with impulsiveness.",
+				"He has shown remarkable <strong>courage and intelligence</strong> in the face of challenges",
+				"English Woman",
+				1,
+				1314,
+				"randomize"
+			]
+		},
+		{
+			"id": 18,
+			"type": "CosyVoiceLoadModel",
+			"pos": [228, 36],
+			"size": [315, 82],
+			"flags": {},
+			"order": 2,
+			"mode": 0,
+			"inputs": [],
+			"outputs": [
+				{
+					"name": "model",
+					"type": "COSYVOICE_MODEL",
+					"links": [16],
+					"shape": 3
+				}
+			],
+			"properties": {
+				"Node name for S&R": "CosyVoiceLoadModel"
+			},
+			"widgets_values": ["2-0.5b", true]
+		},
+		{
+			"id": 19,
+			"type": "TextNode",
+			"pos": [120, 192],
+			"size": [420, 300],
+			"flags": {},
+			"order": 3,
+			"mode": 0,
+			"inputs": [],
+			"outputs": [
+				{
+					"name": "STRING",
+					"type": "STRING",
+					"links": [19],
+					"slot_index": 0,
+					"shape": 3
+				}
+			],
+			"properties": {
+				"Node name for S&R": "TextNode"
+			},
+			"widgets_values": [
+				"[breath] Hey Guys, John here, as you all know I'm coming back to the office in a few weeks <laughter></laughter> can't wait to meet with you incredible people again, <laughter></laughter><strong></strong>[laughter][breath] see you there, bye! John out <laughter></laughter>[cough]"
+			]
+		},
+		{
+			"id": 14,
+			"type": "SaveAudio",
+			"pos": [1104, 168],
+			"size": [408, 144],
+			"flags": {},
+			"order": 5,
+			"mode": 0,
+			"inputs": [
+				{
+					"name": "audio",
+					"type": "AUDIO",
+					"link": 17
+				}
+			],
+			"outputs": [],
+			"properties": {
+				"Node name for S&R": "SaveAudio"
+			},
+			"widgets_values": ["audio/ComfyUI", null]
+		}
+	],
+	"links": [
+		[16, 18, 0, 17, 0, "COSYVOICE_MODEL"],
+		[17, 17, 0, 14, 0, "AUDIO"],
+		[19, 19, 0, 17, 1, "STRING"],
+		[20, 20, 0, 17, 2, "STRING"],
+		[22, 22, 0, 17, 3, "AUDIO"]
+	],
+	"groups": [],
+	"config": {},
+	"extra": {
+		"ds": {
+			"scale": 1,
+			"offset": [244.06801737056003, 78.01301336656826]
+		},
+		"ue_links": []
+	},
+	"version": 0.4
+}

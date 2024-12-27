@@ -253,7 +253,7 @@ class TransformerLM(torch.nn.Module):
         for i in range(max_len):
             y_pred, att_cache, cnn_cache = self.llm.forward_chunk(
                 lm_input,
-                offset=0,
+                offset=offset,
                 required_cache_size=-1,
                 att_cache=att_cache,
                 cnn_cache=cnn_cache,
@@ -265,6 +265,9 @@ class TransformerLM(torch.nn.Module):
                 ).to(torch.bool),
             )
             logp = self.llm_decoder(y_pred[:, -1]).log_softmax(dim=-1)
+            # force continue decode first token
+            if i == 0:
+                logp[:, self.speech_token_size] = -float("inf")
             top_ids = self.sampling_ids(
                 logp.squeeze(dim=0),
                 out_tokens,
@@ -315,10 +318,12 @@ class Qwen2LM(torch.nn.Module):
         self.llm_input_size = llm_input_size
         self.llm_output_size = llm_output_size
         self.speech_token_size = speech_token_size
+
         # 2. build speech token language model related modules
         self.sos_eos = 0
         self.task_id = 1
         self.fill_token = 2
+
         self.llm_embedding = torch.nn.Embedding(2, llm_input_size)
         self.llm = llm
         self.llm_decoder = nn.Linear(llm_output_size, speech_token_size + 3)
@@ -328,10 +333,12 @@ class Qwen2LM(torch.nn.Module):
             smoothing=lsm_weight,
             normalize_length=length_normalized_loss,
         )
+
         # 3. [Optional] build speech token related modules
         self.speech_embedding = torch.nn.Embedding(
             speech_token_size + 3, llm_input_size
         )
+
         # 4. sampling method
         self.sampling = sampling
 
@@ -366,8 +373,10 @@ class Qwen2LM(torch.nn.Module):
         text = torch.concat([prompt_text, text], dim=1)
         text_len += prompt_text_len
         text = self.llm.model.model.embed_tokens(text)
+
         # 2. encode embedding
         embedding = torch.zeros(1, 0, self.llm_input_size, dtype=text.dtype).to(device)
+
         # 3. concat llm_input
         sos_eos_emb = self.llm_embedding.weight[self.sos_eos].reshape(1, 1, -1)
         task_id_emb = self.llm_embedding.weight[self.task_id].reshape(1, 1, -1)
@@ -380,9 +389,11 @@ class Qwen2LM(torch.nn.Module):
         lm_input = torch.concat(
             [sos_eos_emb, embedding, text, task_id_emb, prompt_speech_token_emb], dim=1
         )
+
         # 4. cal min/max_length
         min_len = int((text_len - prompt_text_len) * min_token_text_ratio)
         max_len = int((text_len - prompt_text_len) * max_token_text_ratio)
+
         # 5. step by step decode
         out_tokens = []
         cache = None

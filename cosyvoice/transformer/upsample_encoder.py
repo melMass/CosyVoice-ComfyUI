@@ -17,9 +17,11 @@
 """Encoder definition."""
 
 from typing import Tuple
+
 import torch
 from torch import nn
 from torch.nn import functional as F
+
 from cosyvoice.transformer.convolution import ConvolutionModule
 from cosyvoice.transformer.encoder_layer import ConformerEncoderLayer
 from cosyvoice.transformer.positionwise_feed_forward import PositionwiseFeedForward
@@ -35,6 +37,7 @@ from cosyvoice.utils.mask import add_optional_chunk_mask
 
 class Upsample1D(nn.Module):
     """A 1D upsampling layer with an optional convolution.
+
     Parameters:
         channels (`int`):
             number of channels in the inputs and outputs.
@@ -53,11 +56,7 @@ class Upsample1D(nn.Module):
         self.stride = stride
         # In this mode, first repeat interpolate, than conv with stride=1
         self.conv = nn.Conv1d(
-            self.channels,
-            self.out_channels,
-            stride * 2 + 1,
-            stride=1,
-            padding=0,
+            self.channels, self.out_channels, stride * 2 + 1, stride=1, padding=0
         )
 
     def forward(self, inputs: torch.Tensor, input_lengths: torch.Tensor):
@@ -101,6 +100,7 @@ class PreLookaheadLayer(nn.Module):
         outputs = F.pad(outputs, (2, 0), mode="constant", value=0.0)
         outputs = self.conv2(outputs)
         outputs = outputs.transpose(1, 2).contiguous()
+
         # residual connection
         outputs = outputs + inputs
         return outputs
@@ -168,6 +168,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
         """
         super().__init__()
         self._output_size = output_size
+
         self.global_cmvn = global_cmvn
         self.embed = COSYVOICE_SUBSAMPLE_CLASSES[input_layer](
             input_size,
@@ -177,6 +178,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
                 output_size, positional_dropout_rate
             ),
         )
+
         self.normalize_before = normalize_before
         self.after_norm = torch.nn.LayerNorm(output_size, eps=1e-5)
         self.static_chunk_size = static_chunk_size
@@ -268,6 +270,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
         num_decoding_left_chunks: int = -1,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Embed positions in tensor.
+
         Args:
             xs: padded input tensor (B, T, D)
             xs_lens: input length (B)
@@ -307,6 +310,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
         # lookahead + conformer encoder
         xs = self.pre_lookahead_layer(xs)
         xs = self.forward_layers(xs, chunk_masks, pos_emb, mask_pad)
+
         # upsample + conformer encoder
         xs = xs.transpose(1, 2).contiguous()
         xs, xs_lens = self.up_layer(xs, xs_lens)
@@ -325,6 +329,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
             num_decoding_left_chunks,
         )
         xs = self.forward_up_layers(xs, chunk_masks, pos_emb, mask_pad)
+
         if self.normalize_before:
             xs = self.after_norm(xs)
         # Here we assume the mask is not changed in encoder layers, so just

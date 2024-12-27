@@ -14,10 +14,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from einops import pack, rearrange, repeat
 from cosyvoice.utils.common import mask_to_bias
 from cosyvoice.utils.mask import add_optional_chunk_mask
+from matcha.utils.audio import hann_window, mel_basis
 
-from einops import pack, rearrange, repeat
 from matcha.models.components.decoder import (
     SinusoidalPosEmb,
     Block1D,
@@ -118,11 +119,12 @@ class ConditionalDecoder(nn.Module):
         is shorter or longer than the outputs, please re-sampling it before feeding to the decoder.
         """
         super().__init__()
+        hann_window.clear()
+        mel_basis.clear()
         channels = tuple(channels)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.causal = causal
-
         self.time_embeddings = SinusoidalPosEmb(in_channels)
         time_embed_dim = channels[0] * 4
         self.time_mlp = TimestepEmbedding(
@@ -302,6 +304,7 @@ class ConditionalDecoder(nn.Module):
             mask_down = masks[-1]
             x = resnet(x, mask_down, t)
             x = rearrange(x, "b c t -> b t c").contiguous()
+            # attn_mask = torch.matmul(mask_down.transpose(1, 2).contiguous(), mask_down)
             attn_mask = add_optional_chunk_mask(
                 x, mask_down.bool(), False, False, 0, self.static_chunk_size, -1
             )
@@ -322,6 +325,7 @@ class ConditionalDecoder(nn.Module):
         for resnet, transformer_blocks in self.mid_blocks:
             x = resnet(x, mask_mid, t)
             x = rearrange(x, "b c t -> b t c").contiguous()
+            # attn_mask = torch.matmul(mask_mid.transpose(1, 2).contiguous(), mask_mid)
             attn_mask = add_optional_chunk_mask(
                 x, mask_mid.bool(), False, False, 0, self.static_chunk_size, -1
             )
@@ -340,6 +344,7 @@ class ConditionalDecoder(nn.Module):
             x = pack([x[:, :, : skip.shape[-1]], skip], "b * t")[0]
             x = resnet(x, mask_up, t)
             x = rearrange(x, "b c t -> b t c").contiguous()
+            # attn_mask = torch.matmul(mask_up.transpose(1, 2).contiguous(), mask_up)
             attn_mask = add_optional_chunk_mask(
                 x, mask_up.bool(), False, False, 0, self.static_chunk_size, -1
             )

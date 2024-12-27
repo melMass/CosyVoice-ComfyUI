@@ -21,7 +21,7 @@ import torchaudio
 from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 
-# torchaudio.set_audio_backend("soundfile")
+torchaudio.set_audio_backend("soundfile")
 
 AUDIO_FORMAT_SETS = {"flac", "mp3", "m4a", "ogg", "opus", "wav", "wma"}
 
@@ -40,17 +40,18 @@ def parquet_opener(data, mode="train", tts_data={}):
         assert "src" in sample
         url = sample["src"]
         try:
-            df = pq.read_table(url).to_pandas()
-            for i in range(len(df)):
-                if mode == "inference" and df.loc[i, "utt"] not in tts_data:
-                    continue
-                sample.update(dict(df.loc[i]))
-                if mode == "train":
-                    # NOTE do not return sample directly, must initialize a new dict
-                    yield {**sample}
-                else:
-                    for index, text in enumerate(tts_data[df.loc[i, "utt"]]):
-                        yield {**sample, "tts_index": index, "tts_text": text}
+            for df in pq.ParquetFile(url).iter_batches(batch_size=64):
+                df = df.to_pandas()
+                for i in range(len(df)):
+                    if mode == "inference" and df.loc[i, "utt"] not in tts_data:
+                        continue
+                    sample.update(dict(df.loc[i]))
+                    if mode == "train":
+                        # NOTE do not return sample directly, must initialize a new dict
+                        yield {**sample}
+                    else:
+                        for index, text in enumerate(tts_data[df.loc[i, "utt"]]):
+                            yield {**sample, "tts_index": index, "tts_text": text}
         except Exception as ex:
             logging.warning("Failed to open {}, ex info {}".format(url, ex))
 
@@ -90,7 +91,6 @@ def filter(
             BytesIO(sample["audio_data"])
         )
         sample["speech"] = sample["speech"].mean(dim=0, keepdim=True)
-
         del sample["audio_data"]
         # sample['wav'] is torch.Tensor, we have 100 frames every second
         num_frames = sample["speech"].size(1) / sample["sample_rate"] * 100
@@ -143,9 +143,11 @@ def resample(data, resample_rate=22050, min_sample_rate=16000, mode="train"):
 
 def truncate(data, truncate_length=24576, mode="train"):
     """Truncate data.
+
     Args:
         data: Iterable[{key, wav, label, sample_rate}]
         truncate_length: truncate length
+
     Returns:
         Iterable[{key, wav, label, sample_rate}]
     """
@@ -184,8 +186,10 @@ def compute_fbank(data, feat_extractor, mode="train"):
 
 def compute_f0(data, pitch_extractor, mode="train"):
     """Extract f0
+
     Args:
         data: Iterable[{key, wav, label, sample_rate}]
+
     Returns:
         Iterable[{key, feat, label}]
     """
@@ -362,7 +366,7 @@ def batch(
             logging.fatal("Unsupported batch type {}".format(batch_type))
 
 
-def padding(data, use_spk_embedding, mode="train"):
+def padding(data, use_spk_embedding, mode="train", gan=False):
     """Padding the data into training data
 
     Args:
@@ -388,12 +392,6 @@ def padding(data, use_spk_embedding, mode="train"):
         )
         speech_token = pad_sequence(speech_token, batch_first=True, padding_value=0)
         speech_feat = [sample[i]["speech_feat"] for i in order]
-        pitch_feat = [sample[i]["pitch_feat"] for i in order]
-        pitch_feat_len = torch.tensor(
-            [i.size(0) for i in pitch_feat], dtype=torch.int32
-        )
-        pitch_feat = pad_sequence(pitch_feat, batch_first=True, padding_value=0)
-
         speech_feat_len = torch.tensor(
             [i.size(0) for i in speech_feat], dtype=torch.int32
         )
@@ -414,14 +412,25 @@ def padding(data, use_spk_embedding, mode="train"):
             "speech_token_len": speech_token_len,
             "speech_feat": speech_feat,
             "speech_feat_len": speech_feat_len,
-            "pitch_feat": pitch_feat,
-            "pitch_feat_len": pitch_feat_len,
             "text": text,
             "text_token": text_token,
             "text_token_len": text_token_len,
             "utt_embedding": utt_embedding,
             "spk_embedding": spk_embedding,
         }
+        if gan is True:
+            # in gan train, we need pitch_feat
+            pitch_feat = [sample[i]["pitch_feat"] for i in order]
+            pitch_feat_len = torch.tensor(
+                [i.size(0) for i in pitch_feat], dtype=torch.int32
+            )
+            pitch_feat = pad_sequence(pitch_feat, batch_first=True, padding_value=0)
+            batch["pitch_feat"] = pitch_feat
+            batch["pitch_feat_len"] = pitch_feat_len
+        else:
+            # only gan train needs speech, delete it to save memory
+            del batch["speech"]
+            del batch["speech_len"]
         if mode == "inference":
             tts_text = [sample[i]["tts_text"] for i in order]
             tts_index = [sample[i]["tts_index"] for i in order]

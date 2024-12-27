@@ -86,8 +86,7 @@ def STRING_INPUT(multi=False, default_val=""):
 
 
 DEFAULT_DIALOG = """
-A: Hi I'm comfy, let's dance
-B: No!
+A: Hello
 """
 
 sft_spk_list = [
@@ -624,6 +623,44 @@ class CosyVoiceDialogue(CosyBase):
             set_all_random_seed(seed)
             infered = model.inference_cross_lingual(
                 text, prompt_speech_16k, speed=speed
+            )
+            audio = self.to_comfy(infered)
+            outputs.append(audio)
+            pbar.update(1)
+
+        stacked_voices = self.sequence_audio(outputs, silence)
+        return (stacked_voices,)
+
+
+class CosyVoiceDialogueV2(CosyVoiceDialogue):
+    def generate(
+        self,
+        model: CosyVoice2 | CosyVoice,
+        tts_text: str,
+        speed: float,
+        silence: float,
+        seed: int,
+        **kwargs: AudioTensor,
+    ) -> tuple[AudioTensor]:
+        voices = [self.cut_audio(voice_tensor) for voice_tensor in kwargs.values()]
+        voice_map = self.map(voices)
+        text_map = self.zip_dialog(tts_text, voice_map)
+
+        if not (isinstance(model, CosyVoice2)):
+            raise ValueError("You need to pass the v2 model to Dialog v2...")
+
+        outputs = []
+
+        pbar = comfy.utils.ProgressBar(len(text_map))
+        for line in text_map:
+            _speaker, voice_tensor, text = line
+
+            speech = self.from_comfy(voice_tensor)
+            prompt_speech_16k = postprocess(speech)
+
+            set_all_random_seed(seed)
+            infered = model.inference_instruct2(
+                text, "", prompt_speech_16k, speed=speed
             )
             audio = self.to_comfy(infered)
             outputs.append(audio)

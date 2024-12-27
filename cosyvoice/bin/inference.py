@@ -17,6 +17,7 @@ from __future__ import print_function
 import argparse
 import logging
 
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 import os
 import torch
 from torch.utils.data import DataLoader
@@ -25,8 +26,6 @@ from hyperpyyaml import load_hyperpyyaml
 from tqdm import tqdm
 from cosyvoice.cli.model import CosyVoiceModel
 from cosyvoice.dataset.dataset import Dataset
-
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 def get_args():
@@ -119,7 +118,7 @@ def main():
                     "flow_embedding": utt_embedding,
                 }
             tts_speeches = []
-            for model_output in model.inference(**model_input):
+            for model_output in model.tts(**model_input):
                 tts_speeches.append(model_output["tts_speech"])
             tts_speeches = torch.concat(tts_speeches, dim=1)
             tts_key = "{}_{}".format(utts[0], tts_index[0])
